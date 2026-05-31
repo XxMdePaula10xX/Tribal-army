@@ -36,8 +36,9 @@ function Chip({
 export function SetupScreen() {
   const newGame = useGame((s) => s.newGame);
   const goToMenu = useGame((s) => s.goToMenu);
-  const [count, setCount] = useState(3);
-  const [difficulty, setDifficulty] = useState<Difficulty>('medio');
+  const config = useGame((s) => s.config);
+  const [count, setCount] = useState(config.defaultPlayerCount);
+  const [difficulty, setDifficulty] = useState<Difficulty>(config.defaultDifficulty);
 
   const start = () => {
     const configs: PlayerConfig[] = [

@@ -3,7 +3,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { GameOverScreen } from '@/screens/GameOverScreen';
 import { GameScreen } from '@/screens/GameScreen';
+import { HistoryScreen } from '@/screens/HistoryScreen';
 import { MenuScreen } from '@/screens/MenuScreen';
+import { SettingsScreen } from '@/screens/SettingsScreen';
 import { SetupScreen } from '@/screens/SetupScreen';
 import { useGame } from '@/state/store';
 
@@ -15,6 +17,8 @@ export default function App() {
       <StatusBar style="light" />
       {screen === 'menu' && <MenuScreen />}
       {screen === 'setup' && <SetupScreen />}
+      {screen === 'history' && <HistoryScreen />}
+      {screen === 'settings' && <SettingsScreen />}
       {screen === 'playing' && <GameScreen />}
       {screen === 'gameover' && <GameOverScreen />}
     </View>

@@ -10,8 +10,8 @@ export const MAX_ROUNDS = 100;
 export const MAX_COMBAT_ROUNDS = 20;
 export const AI_ATTACK_PUSHES_LIMIT = 8;
 
-/** Fator de escala de dano — calibrado para partidas de ~25 rodadas. */
-export const DMG_SCALE = 0.45;
+/** Fator de escala de dano — calibrado para partidas de ~25-35 rodadas. */
+export const DMG_SCALE = 0.6;
 
 export type Difficulty = 'facil' | 'medio' | 'dificil';
 
