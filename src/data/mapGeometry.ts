@@ -1,9 +1,9 @@
 import geo from '../../assets/data/mapGeometry.json';
 
 // ============================================================
-// GEOMETRIA DO MAPA — dados pré-computados (Voronoi)
-// Gerado por scripts/genMapGeometry.ts. O app só lê este JSON
-// (sem d3-delaunay em runtime). É a fonte da adjacência do jogo.
+// GEOMETRIA DO MAPA — dados pré-computados (Voronoi + bordas
+// onduladas + rios). Gerado por scripts/genMapGeometry.ts.
+// O app só lê este JSON. É a fonte da adjacência do jogo.
 // ============================================================
 
 export type Pt = [number, number];
@@ -15,30 +15,51 @@ interface MapGeometry {
   polygons: Record<string, Pt[]>;
   centroids: Record<string, Pt>;
   adjacency: Record<string, string[]>;
-  regionBorders: [Pt, Pt][];
+  regionBorders: Pt[][];
+  rivers: Pt[][];
 }
 
 export const MAP_GEOMETRY = geo as unknown as MapGeometry;
-
 export const MAP_W = MAP_GEOMETRY.width;
 export const MAP_H = MAP_GEOMETRY.height;
 
-export const REGION_COLORS: Record<string, string> = {
-  norte: '#5aa9e6',
-  central: '#d8a13a',
-  ferro: '#9aa0a6',
-  florestas: '#4f9d5d',
-  costa: '#3fbfb2',
-  sombras: '#9b6fc0',
-  estepes: '#c98a4b',
-  deserto: '#e6c35a',
+// ----- Biomas por região -----
+
+export type Biome =
+  | 'neve'
+  | 'grama'
+  | 'montanha'
+  | 'floresta'
+  | 'praia'
+  | 'pantano'
+  | 'savana'
+  | 'deserto';
+
+export const BIOMES: Record<string, Biome> = {
+  norte: 'neve',
+  central: 'grama',
+  ferro: 'montanha',
+  florestas: 'floresta',
+  costa: 'praia',
+  sombras: 'pantano',
+  estepes: 'savana',
+  deserto: 'deserto',
 };
 
-export interface GrainDot {
+export const BIOME_COLORS: Record<Biome, string> = {
+  neve: '#dfe9f2',
+  grama: '#a4cf69',
+  montanha: '#b1a288',
+  floresta: '#5a9b53',
+  praia: '#8fcfc0',
+  pantano: '#7f8a57',
+  savana: '#cabf68',
+  deserto: '#e7c34f',
+};
+
+export interface Mark {
   x: number;
   y: number;
-  r: number;
-  dark: boolean;
 }
 
 function mulberry32(seed: number) {
@@ -50,18 +71,25 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-/** Pontos de uma "tile" 40x40 do padrão de grain (textura de campo). */
-export const GRAIN_DOTS: GrainDot[] = (() => {
-  const rand = mulberry32(987654);
-  const dots: GrainDot[] = [];
-  for (let i = 0; i < 22; i++) {
-    dots.push({
-      x: rand() * 40,
-      y: rand() * 40,
-      r: 0.6 + rand() * 1.1,
-      dark: rand() > 0.5,
-    });
+function strHash(s: string) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
-  return dots;
+  return h >>> 0;
+}
+
+/** Marcas (posições) da tile 50x50 de textura de cada bioma. */
+export const BIOME_MARKS: Record<Biome, Mark[]> = (() => {
+  const out = {} as Record<Biome, Mark[]>;
+  (Object.keys(BIOME_COLORS) as Biome[]).forEach((b) => {
+    const rg = mulberry32(strHash(b));
+    const marks: Mark[] = [];
+    for (let i = 0; i < 10; i++) marks.push({ x: rg() * 50, y: rg() * 50 });
+    out[b] = marks;
+  });
+  return out;
 })();
+
+export const TILE = 50;

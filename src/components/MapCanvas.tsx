@@ -11,7 +11,7 @@ import {
 import Svg, {
   Circle,
   Defs,
-  Line,
+  G,
   Path,
   Pattern,
   RadialGradient,
@@ -21,15 +21,20 @@ import Svg, {
 } from 'react-native-svg';
 
 import {
-  GRAIN_DOTS,
+  BIOME_COLORS,
+  BIOME_MARKS,
+  BIOMES,
   MAP_GEOMETRY,
   MAP_H,
   MAP_W,
+  TILE,
+  type Biome,
   type Pt,
 } from '@/data/mapGeometry';
 import { armySize } from '@/game/army';
 import type { GameState, Player } from '@/types';
 
+import mapData from '../../assets/data/map.json';
 import { theme } from './theme';
 
 interface Props {
@@ -40,18 +45,39 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-const { polygons, centroids, regionBorders, order } = MAP_GEOMETRY;
+const { polygons, centroids, regionBorders, rivers, order } = MAP_GEOMETRY;
 
-function pathFor(poly: Pt[]): string {
-  return (
-    poly.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') +
-    ' Z'
-  );
-}
+const linePath = (poly: Pt[]) =>
+  poly.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+const ringPath = (poly: Pt[]) => linePath(poly) + ' Z';
 
 const POLY_PATHS: Record<string, string> = Object.fromEntries(
-  order.filter((id) => polygons[id]).map((id) => [id, pathFor(polygons[id])])
+  order.filter((id) => polygons[id]).map((id) => [id, ringPath(polygons[id])])
 );
+
+const REGION_BY_ID: Record<string, string> = Object.fromEntries(
+  (mapData.territories as { id: string; region: string }[]).map((t) => [t.id, t.region])
+);
+const BIOME_OF: Record<string, Biome> = Object.fromEntries(
+  order.map((id) => [id, BIOMES[REGION_BY_ID[id]]])
+);
+
+/** Catmull-Rom → curva suave para os rios. */
+function smoothPath(pts: Pt[]): string {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    const c1: Pt = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2: Pt = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+const RIVER_PATHS = rivers.map(smoothPath);
 
 function inside(poly: Pt[], x: number, y: number): boolean {
   let c = false;
@@ -67,14 +93,36 @@ function ownerColor(owner: number | 'neutral', players: Player[]): string {
   return owner === 'neutral' ? theme.neutral : players[owner]?.color ?? theme.neutral;
 }
 
+/** Marcas de textura de um bioma (formas distintas por bioma). */
+function biomeMarks(biome: Biome) {
+  return BIOME_MARKS[biome].map((m, i) => {
+    const x = m.x;
+    const y = m.y;
+    switch (biome) {
+      case 'floresta':
+        return <Circle key={i} cx={x} cy={y} r={2.4} fill="#2f6b34" fillOpacity={0.55} />;
+      case 'neve':
+        return <Circle key={i} cx={x} cy={y} r={1.6} fill="#ffffff" fillOpacity={0.7} />;
+      case 'pantano':
+        return <Circle key={i} cx={x} cy={y} r={2.6} fill="#3f4a2a" fillOpacity={0.5} />;
+      case 'montanha':
+        return <Path key={i} d={`M${x},${y} l4,-6 l4,6 z`} fill="#6b5b46" fillOpacity={0.5} />;
+      case 'grama':
+        return <Rect key={i} x={x} y={y} width={1.6} height={4} fill="#3f6b1f" fillOpacity={0.4} />;
+      default: // deserto, praia, savana → "dunas"
+        return (
+          <Path key={i} d={`M${x},${y} q4,-3 8,0`} stroke="#00000022" strokeWidth={1.4} fill="none" />
+        );
+    }
+  });
+}
+
 export function MapCanvas({ territories, players, selectedId, attackTargetId, onSelect }: Props) {
   const [size, setSize] = useState({ w: 0, h: 0 });
 
   const scale = useRef(new Animated.Value(1)).current;
   const tx = useRef(new Animated.Value(0)).current;
   const ty = useRef(new Animated.Value(0)).current;
-
-  // Espelho numérico do transform (modelo de origem no canto superior esquerdo).
   const s = useRef(1);
   const TX = useRef(0);
   const TY = useRef(0);
@@ -184,6 +232,8 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
     })
   ).current;
 
+  const biomesPresent = Array.from(new Set(order.map((id) => BIOME_OF[id])));
+
   return (
     <View style={styles.container} onLayout={onLayout} {...pan.panHandlers}>
       <Animated.View
@@ -196,90 +246,108 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
       >
         <Svg width={MAP_W} height={MAP_H}>
           <Defs>
-            <Pattern id="grain" patternUnits="userSpaceOnUse" width={40} height={40}>
-              {GRAIN_DOTS.map((d, i) => (
-                <Circle
-                  key={i}
-                  cx={d.x}
-                  cy={d.y}
-                  r={d.r}
-                  fill={d.dark ? '#000' : '#fff'}
-                  fillOpacity={d.dark ? 0.18 : 0.14}
-                />
-              ))}
-            </Pattern>
-            <RadialGradient id="shade" cx="50%" cy="38%" r="75%">
-              <Stop offset="0%" stopColor="#ffffff" stopOpacity={0.16} />
-              <Stop offset="55%" stopColor="#ffffff" stopOpacity={0} />
-              <Stop offset="100%" stopColor="#000000" stopOpacity={0.26} />
+            {biomesPresent.map((b) => (
+              <Pattern key={b} id={`pat-${b}`} width={TILE} height={TILE} patternUnits="userSpaceOnUse">
+                {biomeMarks(b)}
+              </Pattern>
+            ))}
+            <RadialGradient id="shade" cx="50%" cy="40%" r="75%">
+              <Stop offset="0%" stopColor="#ffffff" stopOpacity={0.12} />
+              <Stop offset="60%" stopColor="#ffffff" stopOpacity={0} />
+              <Stop offset="100%" stopColor="#000000" stopOpacity={0.22} />
             </RadialGradient>
           </Defs>
 
-          <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill={theme.bg} />
+          {/* Oceano */}
+          <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#1d6e8c" />
 
-          {/* Preenchimento por dono */}
+          {/* Preenchimento de bioma + textura */}
           {order.map((id) =>
             POLY_PATHS[id] ? (
               <Path
-                key={`f-${id}`}
+                key={`b-${id}`}
                 d={POLY_PATHS[id]}
-                fill={ownerColor(territories[id].owner, players)}
-                stroke="#0f0b07"
-                strokeWidth={1.5}
+                fill={BIOME_COLORS[BIOME_OF[id]]}
+                stroke="#5a4a32"
+                strokeWidth={1.2}
+              />
+            ) : null
+          )}
+          {order.map((id) =>
+            POLY_PATHS[id] ? <Path key={`t-${id}`} d={POLY_PATHS[id]} fill={`url(#pat-${BIOME_OF[id]})`} /> : null
+          )}
+          {order.map((id) =>
+            POLY_PATHS[id] ? <Path key={`sh-${id}`} d={POLY_PATHS[id]} fill="url(#shade)" /> : null
+          )}
+
+          {/* Rios */}
+          {RIVER_PATHS.map((d, i) => (
+            <G key={`r-${i}`}>
+              <Path d={d} fill="none" stroke="#2b6fa8" strokeWidth={11} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
+              <Path d={d} fill="none" stroke="#5aa6d8" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
+            </G>
+          ))}
+
+          {/* Bordas de região */}
+          {regionBorders.map((pl, i) => (
+            <Path
+              key={`rb-${i}`}
+              d={linePath(pl)}
+              fill="none"
+              stroke="#3a2e1c"
+              strokeWidth={5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+
+          {/* Borda do dono */}
+          {order.map((id) =>
+            POLY_PATHS[id] ? (
+              <Path
+                key={`o-${id}`}
+                d={POLY_PATHS[id]}
+                fill="none"
+                stroke={ownerColor(territories[id].owner, players)}
+                strokeWidth={3}
+                strokeOpacity={0.9}
               />
             ) : null
           )}
 
-          {/* Textura (grain + sombreamento) */}
-          {order.map((id) =>
-            POLY_PATHS[id] ? (
-              <Path key={`g-${id}`} d={POLY_PATHS[id]} fill="url(#grain)" />
-            ) : null
-          )}
-          {order.map((id) =>
-            POLY_PATHS[id] ? (
-              <Path key={`s-${id}`} d={POLY_PATHS[id]} fill="url(#shade)" />
-            ) : null
-          )}
-
-          {/* Bordas grossas entre regiões */}
-          {regionBorders.map(([a, b], i) => (
-            <Line
-              key={`rb-${i}`}
-              x1={a[0]}
-              y1={a[1]}
-              x2={b[0]}
-              y2={b[1]}
-              stroke="#0f0b07"
-              strokeWidth={5}
-              strokeLinecap="round"
-            />
-          ))}
-
-          {/* Destaque de seleção / alvo */}
+          {/* Destaque seleção / alvo */}
           {selectedId && POLY_PATHS[selectedId] && (
-            <Path d={POLY_PATHS[selectedId]} fill="none" stroke={theme.gold} strokeWidth={5} />
+            <Path d={POLY_PATHS[selectedId]} fill="none" stroke={theme.gold} strokeWidth={6} />
           )}
           {attackTargetId && POLY_PATHS[attackTargetId] && (
-            <Path d={POLY_PATHS[attackTargetId]} fill="none" stroke={theme.danger} strokeWidth={5} />
+            <Path d={POLY_PATHS[attackTargetId]} fill="none" stroke={theme.danger} strokeWidth={6} />
           )}
 
-          {/* Contagem de tropas */}
+          {/* Brasão do dono + tropas */}
           {order.map((id) =>
             centroids[id] ? (
-              <SvgText
-                key={`t-${id}`}
-                x={centroids[id][0]}
-                y={centroids[id][1] + 7}
-                fontSize={22}
-                fontWeight="bold"
-                fill="#ffffff"
-                stroke="#000000"
-                strokeWidth={0.6}
-                textAnchor="middle"
-              >
-                {armySize(territories[id].army)}
-              </SvgText>
+              <G key={`badge-${id}`}>
+                <Circle
+                  cx={centroids[id][0]}
+                  cy={centroids[id][1]}
+                  r={15}
+                  fill={ownerColor(territories[id].owner, players)}
+                  stroke="#0f0b07"
+                  strokeWidth={1.5}
+                />
+                <SvgText
+                  x={centroids[id][0]}
+                  y={centroids[id][1] + 6}
+                  fontSize={18}
+                  fontWeight="bold"
+                  fill="#ffffff"
+                  stroke="#000000"
+                  strokeWidth={0.5}
+                  textAnchor="middle"
+                >
+                  {armySize(territories[id].army)}
+                </SvgText>
+              </G>
             ) : null
           )}
         </Svg>
@@ -298,7 +366,7 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.bg, overflow: 'hidden' },
+  container: { flex: 1, backgroundColor: '#1d6e8c', overflow: 'hidden' },
   zoom: { position: 'absolute', right: 10, bottom: 10, gap: 8 },
   zoomBtn: {
     width: 44,

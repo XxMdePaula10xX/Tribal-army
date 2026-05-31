@@ -49,10 +49,10 @@ const BIOME_SOLID: Record<string, string> = {
   grama: '#a4cf69',
   montanha: '#b1a288',
   floresta: '#5a9b53',
-  praia: '#e7dcab',
+  praia: '#8fcfc0',
   pantano: '#7f8a57',
-  savana: '#cdb866',
-  deserto: '#e7c97c',
+  savana: '#cabf68',
+  deserto: '#e7c34f',
 };
 
 function mulberry32(seed: number) {
@@ -296,13 +296,24 @@ const borders = regionBorders
   .map((pl) => `<path d="${pl.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')}" fill="none" stroke="#3a2e1c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`)
   .join('\n');
 
-const labels = order
+// Simula donos (cores de jogadores) para mostrar como fica no jogo.
+const PALETTE = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#6b6b6b'];
+const ownerColor = (id: string) => PALETTE[strHash('own' + id) % PALETTE.length];
+
+const ownerBorders = order
+  .filter((id) => wavy[id])
+  .map((id) => `<path d="${toPath(wavy[id])}" fill="none" stroke="${ownerColor(id)}" stroke-width="3" stroke-opacity="0.9"/>`)
+  .join('\n');
+
+const badges = order
   .filter((id) => centroids[id])
   .map((id) => {
     const c = centroids[id];
-    return `<text x="${c[0].toFixed(1)}" y="${c[1].toFixed(1)}" font-size="17" font-family="sans-serif" font-weight="bold" fill="#22324a" text-anchor="middle" dominant-baseline="middle" stroke="#ffffff" stroke-width="0.5" paint-order="stroke">${nameOf[id]}</text>`;
+    const troops = 1 + (strHash('t' + id) % 9);
+    return `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="15" fill="${ownerColor(id)}" stroke="#0f0b07" stroke-width="1.5"/><text x="${c[0].toFixed(1)}" y="${(c[1] + 6).toFixed(1)}" font-size="18" font-family="sans-serif" font-weight="bold" fill="#fff" text-anchor="middle" stroke="#000" stroke-width="0.5" paint-order="stroke">${troops}</text>`;
   })
   .join('\n');
+const labels = ownerBorders + '\n' + badges;
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   ${defs}
