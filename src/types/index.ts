@@ -42,6 +42,7 @@ export interface Player {
   gold: number;
   cards: number;
   conqueredThisTurn: boolean;
+  fortifiedThisTurn: boolean;
 }
 
 export type GamePhase = 'menu' | 'setup' | 'playing' | 'gameover';
@@ -75,6 +76,8 @@ export interface CombatResult {
   dRes: number;
   aLoss: number;
   dLoss: number;
+  aLossByType: Partial<Record<UnitType, number>>;
+  dLossByType: Partial<Record<UnitType, number>>;
   aSizeBefore: number;
   dSizeBefore: number;
   aSizeAfter: number;

@@ -45,20 +45,22 @@ export function applyDamage(
   damage: number,
   priority: UnitType[],
   woundIn = 0
-): { killed: number; wound: number } {
+): { killed: number; wound: number; killedByType: Partial<Record<UnitType, number>> } {
   let killed = 0;
   let remaining = damage + woundIn;
+  const killedByType: Partial<Record<UnitType, number>> = {};
 
   for (const unitType of priority) {
     while (army[unitType] > 0 && remaining >= UNITS[unitType].hp) {
       remaining -= UNITS[unitType].hp;
       army[unitType]--;
       killed++;
+      killedByType[unitType] = (killedByType[unitType] || 0) + 1;
     }
   }
 
   const wound = armySize(army) > 0 ? remaining : 0;
-  return { killed, wound };
+  return { killed, wound, killedByType };
 }
 
 export interface CombatRoundInput {
@@ -117,6 +119,8 @@ export function combatRound(input: CombatRoundInput): CombatRoundOutput {
     dRes,
     aLoss: aHit.killed,
     dLoss: dHit.killed,
+    aLossByType: aHit.killedByType,
+    dLossByType: dHit.killedByType,
     aSizeBefore,
     dSizeBefore,
     aSizeAfter,

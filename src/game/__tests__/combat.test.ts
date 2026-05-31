@@ -44,6 +44,14 @@ describe('applyDamage', () => {
     const { killed } = applyDamage(army, 5, targetOrder('default'), 2); // 5+2 >= 6
     expect(killed).toBe(1);
   });
+
+  it('reporta quais tropas morreram (killedByType)', () => {
+    const army = newArmy({ ninja: 2, lanceiro: 1 }); // ninja hp 3, lanceiro hp 6
+    // default = menor HP primeiro → mata os 2 ninjas (6) e sobra 0 pro lanceiro
+    const { killedByType } = applyDamage(army, 6, targetOrder('default'));
+    expect(killedByType.ninja).toBe(2);
+    expect(killedByType.lanceiro).toBeUndefined();
+  });
 });
 
 describe('variance', () => {

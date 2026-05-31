@@ -14,6 +14,7 @@ function player(idx: number, overrides: Partial<Player> = {}): Player {
     gold: 500,
     cards: 0,
     conqueredThisTurn: false,
+    fortifiedThisTurn: false,
     ...overrides,
   };
 }
@@ -116,8 +117,8 @@ describe('endTurn', () => {
     expect(afterP1.currentPlayerIdx).toBe(0);
     expect(afterP1.round).toBe(2);
     expect(afterP1.firstTurnDone).toBe(true);
-    // P0 possui valdoria (norte): 200 + 300 = 500 de renda.
-    expect(afterP1.players[0].gold).toBe(1000);
+    // P0 possui só valdoria (norte incompleta): 1 * 150 = 150 de renda.
+    expect(afterP1.players[0].gold).toBe(650);
   });
 });
 

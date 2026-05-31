@@ -3,6 +3,7 @@ import type { TerritoryState } from '@/types';
 import { newArmy } from '../army';
 import {
   cardTradeReward,
+  controlledRegions,
   controlledTerritories,
   recruitCost,
   turnIncome,
@@ -32,22 +33,33 @@ describe('cardTradeReward', () => {
 });
 
 describe('turnIncome / controlledTerritories', () => {
-  // valdoria e eldermark são da região "norte" (bônus 300).
-  const territories: Record<string, TerritoryState> = {
+  // norte = valdoria, eldermark, ravencrest, northreach, frostwatch
+  const partial: Record<string, TerritoryState> = {
     valdoria: terr(0),
     eldermark: terr(0),
     thornheim: terr(1), // central
   };
 
   it('conta apenas os territórios do dono', () => {
-    expect(controlledTerritories(territories, 0)).toEqual(['valdoria', 'eldermark']);
-    expect(controlledTerritories(territories, 1)).toEqual(['thornheim']);
+    expect(controlledTerritories(partial, 0)).toEqual(['valdoria', 'eldermark']);
+    expect(controlledTerritories(partial, 1)).toEqual(['thornheim']);
   });
 
-  it('renda = 200/território + bônus regional por território', () => {
-    // 2 * 200 + 2 * 300 (norte) = 1000
-    expect(turnIncome(territories, 0)).toBe(1000);
-    // 1 * 200 + 1 * 250 (central) = 450
-    expect(turnIncome(territories, 1)).toBe(450);
+  it('renda base por território, sem bônus se a região não está completa', () => {
+    expect(turnIncome(partial, 0)).toBe(300); // 2 * 150
+    expect(turnIncome(partial, 1)).toBe(150); // 1 * 150
+  });
+
+  it('região controlada por inteiro dá bônus proporcional ao tamanho', () => {
+    const full: Record<string, TerritoryState> = {
+      valdoria: terr(0),
+      eldermark: terr(0),
+      ravencrest: terr(0),
+      northreach: terr(0),
+      frostwatch: terr(0),
+    };
+    // 5 * 150 + 5 * 30 (região norte completa) = 900
+    expect(turnIncome(full, 0)).toBe(900);
+    expect(controlledRegions(full, 0)).toContain('norte');
   });
 });

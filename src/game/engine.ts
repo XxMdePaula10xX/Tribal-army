@@ -198,6 +198,9 @@ export function fortify(
   if (!MAP[fromId]?.adjacentTo.includes(toId)) {
     return { state, ok: false, reason: 'Territórios não são vizinhos.' };
   }
+  if (state.players[playerIdx].fortifiedThisTurn) {
+    return { state, ok: false, reason: 'Você já remanejou neste turno.' };
+  }
   for (const k of Object.keys(batch) as UnitType[]) {
     if ((batch[k] || 0) > from.army[k]) {
       return { state, ok: false, reason: 'Tropas insuficientes.' };
@@ -209,6 +212,7 @@ export function fortify(
     next.territories[fromId].army[k] -= qty || 0;
     next.territories[toId].army[k] += qty || 0;
   }
+  next.players[playerIdx].fortifiedThisTurn = true;
   return { state: next, ok: true };
 }
 
@@ -255,6 +259,7 @@ function isPlayerAlive(state: GameState, playerIdx: number): boolean {
 export function endTurn(state: GameState): GameState {
   const next = cloneState(state);
   next.players[next.currentPlayerIdx].conqueredThisTurn = false;
+  next.players[next.currentPlayerIdx].fortifiedThisTurn = false;
 
   // Procura o próximo jogador vivo.
   const count = next.players.length;

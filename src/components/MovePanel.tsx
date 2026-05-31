@@ -2,35 +2,34 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { UNITS, UNIT_TYPES, type UnitType } from '@/constants/units';
-import { recruitCost } from '@/game';
+import { MAP } from '@/data/map';
 import { useGame } from '@/state/store';
 
 import { Button } from './Button';
 import { theme } from './theme';
 
 interface Props {
-  territoryId: string;
+  fromId: string;
+  toId: string;
   visible: boolean;
   onClose: () => void;
 }
 
 type Draft = Partial<Record<UnitType, number>>;
 
-export function RecruitPanel({ territoryId, visible, onClose }: Props) {
+export function MovePanel({ fromId, toId, visible, onClose }: Props) {
   const game = useGame((s) => s.game)!;
-  const recruit = useGame((s) => s.recruit);
+  const fortify = useGame((s) => s.fortify);
 
-  const player = game.players[game.currentPlayerIdx];
-  const army = game.territories[territoryId]?.army;
-
+  const fromArmy = game.territories[fromId]?.army;
   const [draft, setDraft] = useState<Draft>({});
 
-  const cost = recruitCost(draft);
-  const remaining = player.gold - cost;
+  const total = UNIT_TYPES.reduce((s, k) => s + (draft[k] || 0), 0);
 
   const change = (k: UnitType, delta: number) => {
     setDraft((d) => {
-      const next = Math.max(0, (d[k] || 0) + delta);
+      const max = fromArmy?.[k] ?? 0;
+      const next = Math.min(max, Math.max(0, (d[k] || 0) + delta));
       return { ...d, [k]: next };
     });
   };
@@ -41,7 +40,7 @@ export function RecruitPanel({ territoryId, visible, onClose }: Props) {
     onClose();
   };
   const confirm = () => {
-    if (cost > 0) recruit(territoryId, draft);
+    if (total > 0) fortify(fromId, toId, draft);
     reset();
     onClose();
   };
@@ -50,30 +49,25 @@ export function RecruitPanel({ territoryId, visible, onClose }: Props) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={cancel}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Recrutar tropas</Text>
-            <Text style={styles.gold}>🪙 {remaining}</Text>
-          </View>
+          <Text style={styles.title}>Remanejar tropas</Text>
+          <Text style={styles.route}>
+            {MAP[fromId]?.name} → {MAP[toId]?.name}
+          </Text>
 
           <ScrollView contentContainerStyle={styles.list}>
             {UNIT_TYPES.map((k) => {
               const u = UNITS[k];
-              const owned = army?.[k] ?? 0;
+              const avail = fromArmy?.[k] ?? 0;
+              if (avail === 0) return null;
               const pending = draft[k] || 0;
-              const canAdd = remaining >= u.cost;
               return (
                 <View key={k} style={styles.row}>
                   <Text style={styles.icon}>{u.icon}</Text>
                   <View style={styles.info}>
                     <Text style={styles.name}>{u.name}</Text>
-                    <Text style={styles.stats}>
-                      ⚔️{u.atk} 🛡️{u.def} ❤️{u.hp} · 🪙{u.cost}
-                    </Text>
+                    <Text style={styles.stats}>disponível: {avail}</Text>
                   </View>
-                  <Text style={styles.qty}>
-                    ×{owned}
-                    {pending > 0 && <Text style={styles.pending}> +{pending}</Text>}
-                  </Text>
+                  <Text style={styles.qty}>{pending}</Text>
                   <View style={styles.stepper}>
                     <Pressable
                       disabled={pending === 0}
@@ -83,9 +77,9 @@ export function RecruitPanel({ territoryId, visible, onClose }: Props) {
                       <Text style={[styles.stepText, styles.minusText]}>−</Text>
                     </Pressable>
                     <Pressable
-                      disabled={!canAdd}
+                      disabled={pending >= avail}
                       onPress={() => change(k, 1)}
-                      style={[styles.step, styles.plus, !canAdd && styles.stepDisabled]}
+                      style={[styles.step, styles.plus, pending >= avail && styles.stepDisabled]}
                     >
                       <Text style={styles.stepText}>＋</Text>
                     </Pressable>
@@ -96,15 +90,10 @@ export function RecruitPanel({ territoryId, visible, onClose }: Props) {
           </ScrollView>
 
           <View style={styles.footer}>
-            <Text style={styles.cost}>Custo: 🪙 {cost}</Text>
+            <Text style={styles.cost}>Movendo: {total} tropa(s)</Text>
             <View style={styles.actions}>
               <Button label="Cancelar" variant="secondary" onPress={cancel} style={styles.flex1} />
-              <Button
-                label="Recrutar"
-                onPress={confirm}
-                disabled={cost === 0}
-                style={styles.flex1}
-              />
+              <Button label="Mover" onPress={confirm} disabled={total === 0} style={styles.flex1} />
             </View>
           </View>
         </View>
@@ -124,14 +113,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
   title: { color: theme.gold, fontSize: 20, fontWeight: '800' },
-  gold: { color: theme.text, fontSize: 16, fontWeight: '700' },
+  route: { color: theme.textDim, fontSize: 14, marginTop: 2, marginBottom: 12 },
   list: { gap: 8 },
   row: {
     flexDirection: 'row',
@@ -147,16 +130,9 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   name: { color: theme.text, fontWeight: '700', fontSize: 15 },
   stats: { color: theme.textDim, fontSize: 12, marginTop: 2 },
-  qty: { color: theme.gold, fontWeight: '700', fontSize: 15, minWidth: 52, textAlign: 'right' },
-  pending: { color: theme.success, fontSize: 13 },
+  qty: { color: theme.gold, fontWeight: '700', fontSize: 16, minWidth: 32, textAlign: 'right' },
   stepper: { flexDirection: 'row', gap: 6 },
-  step: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  step: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   plus: { backgroundColor: theme.gold },
   minus: { backgroundColor: theme.bgPanel, borderWidth: 1, borderColor: theme.border },
   stepDisabled: { opacity: 0.3 },

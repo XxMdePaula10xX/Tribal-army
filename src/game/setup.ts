@@ -40,6 +40,7 @@ export function createGame(configs: PlayerConfig[]): GameState {
     gold: INITIAL_GOLD,
     cards: 0,
     conqueredThisTurn: false,
+    fortifiedThisTurn: false,
   }));
 
   // Distribui os 40 territórios igualmente (round-robin sobre baralho embaralhado).
