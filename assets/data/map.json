@@ -1,0 +1,294 @@
+{
+  "territories": [
+    {
+      "id": "valdoria",
+      "name": "Valdoria",
+      "region": "norte",
+      "adjacentTo": ["eldermark", "thornheim", "frostwatch"]
+    },
+    {
+      "id": "eldermark",
+      "name": "Eldermark",
+      "region": "norte",
+      "adjacentTo": ["valdoria", "ravencrest", "ironvale"]
+    },
+    {
+      "id": "ravencrest",
+      "name": "Ravencrest",
+      "region": "norte",
+      "adjacentTo": ["eldermark", "northreach", "kingsfall"]
+    },
+    {
+      "id": "northreach",
+      "name": "Northreach",
+      "region": "norte",
+      "adjacentTo": ["ravencrest", "frostwatch", "stonehelm"]
+    },
+    {
+      "id": "frostwatch",
+      "name": "Frostwatch",
+      "region": "norte",
+      "adjacentTo": ["valdoria", "northreach", "emberfall"]
+    },
+    {
+      "id": "thornheim",
+      "name": "Thornheim",
+      "region": "central",
+      "adjacentTo": ["valdoria", "ironvale", "greenbarrow"]
+    },
+    {
+      "id": "ironvale",
+      "name": "Ironvale",
+      "region": "central",
+      "adjacentTo": ["eldermark", "thornheim", "goldmere"]
+    },
+    {
+      "id": "goldmere",
+      "name": "Goldmere",
+      "region": "central",
+      "adjacentTo": ["ironvale", "oakenshire", "redwyn"]
+    },
+    {
+      "id": "oakenshire",
+      "name": "Oakenshire",
+      "region": "central",
+      "adjacentTo": ["goldmere", "kingsfall", "mistwood"]
+    },
+    {
+      "id": "kingsfall",
+      "name": "Kingsfall",
+      "region": "central",
+      "adjacentTo": ["ravencrest", "oakenshire", "brightwall"]
+    },
+    {
+      "id": "stonehelm",
+      "name": "Stonehelm",
+      "region": "ferro",
+      "adjacentTo": ["northreach", "emberfall", "drakenshire"]
+    },
+    {
+      "id": "emberfall",
+      "name": "Emberfall",
+      "region": "ferro",
+      "adjacentTo": ["frostwatch", "stonehelm", "stormhold"]
+    },
+    {
+      "id": "drakenshire",
+      "name": "Drakenshire",
+      "region": "ferro",
+      "adjacentTo": ["stonehelm", "stormhold", "redwyn"]
+    },
+    {
+      "id": "stormhold",
+      "name": "Stormhold",
+      "region": "ferro",
+      "adjacentTo": ["emberfall", "drakenshire", "ashpeak"]
+    },
+    {
+      "id": "ashpeak",
+      "name": "Ashpeak",
+      "region": "ferro",
+      "adjacentTo": ["stormhold", "wyverncoast", "silverfen"]
+    },
+    {
+      "id": "redwyn",
+      "name": "Redwyn",
+      "region": "florestas",
+      "adjacentTo": ["goldmere", "drakenshire", "greenbarrow"]
+    },
+    {
+      "id": "greenbarrow",
+      "name": "Greenbarrow",
+      "region": "florestas",
+      "adjacentTo": ["thornheim", "redwyn", "mistwood"]
+    },
+    {
+      "id": "mistwood",
+      "name": "Mistwood",
+      "region": "florestas",
+      "adjacentTo": ["oakenshire", "greenbarrow", "brightwall"]
+    },
+    {
+      "id": "brightwall",
+      "name": "Brightwall",
+      "region": "florestas",
+      "adjacentTo": ["kingsfall", "mistwood", "wolfgard"]
+    },
+    {
+      "id": "wolfgard",
+      "name": "Wolfgard",
+      "region": "florestas",
+      "adjacentTo": ["brightwall", "wyverncoast", "crownhaven"]
+    },
+    {
+      "id": "wyverncoast",
+      "name": "Wyverncoast",
+      "region": "costa",
+      "adjacentTo": ["ashpeak", "wolfgard", "silverfen"]
+    },
+    {
+      "id": "silverfen",
+      "name": "Silverfen",
+      "region": "costa",
+      "adjacentTo": ["ashpeak", "wyverncoast", "sunspire"]
+    },
+    {
+      "id": "sunspire",
+      "name": "Sunspire",
+      "region": "costa",
+      "adjacentTo": ["silverfen", "falconridge", "shadowfen"]
+    },
+    {
+      "id": "falconridge",
+      "name": "Falconridge",
+      "region": "costa",
+      "adjacentTo": ["sunspire", "crownhaven", "duskmire"]
+    },
+    {
+      "id": "crownhaven",
+      "name": "Crownhaven",
+      "region": "costa",
+      "adjacentTo": ["wolfgard", "falconridge", "hollowmere"]
+    },
+    {
+      "id": "shadowfen",
+      "name": "Shadowfen",
+      "region": "sombras",
+      "adjacentTo": ["sunspire", "duskmire", "ashenford"]
+    },
+    {
+      "id": "duskmire",
+      "name": "Duskmire",
+      "region": "sombras",
+      "adjacentTo": ["falconridge", "shadowfen", "blackhollow"]
+    },
+    {
+      "id": "ashenford",
+      "name": "Ashenford",
+      "region": "sombras",
+      "adjacentTo": ["shadowfen", "blackhollow", "grimmoor"]
+    },
+    {
+      "id": "blackhollow",
+      "name": "Blackhollow",
+      "region": "sombras",
+      "adjacentTo": ["duskmire", "ashenford", "thornfen"]
+    },
+    {
+      "id": "grimmoor",
+      "name": "Grimmoor",
+      "region": "sombras",
+      "adjacentTo": ["ashenford", "wildreach", "farsteppe"]
+    },
+    {
+      "id": "thornfen",
+      "name": "Thornfen",
+      "region": "estepes",
+      "adjacentTo": ["blackhollow", "wildreach", "dunereach"]
+    },
+    {
+      "id": "wildreach",
+      "name": "Wildreach",
+      "region": "estepes",
+      "adjacentTo": ["grimmoor", "thornfen", "hollowmere"]
+    },
+    {
+      "id": "hollowmere",
+      "name": "Hollowmere",
+      "region": "estepes",
+      "adjacentTo": ["crownhaven", "wildreach", "farsteppe"]
+    },
+    {
+      "id": "farsteppe",
+      "name": "Farsteppe",
+      "region": "estepes",
+      "adjacentTo": ["grimmoor", "hollowmere", "windmoor"]
+    },
+    {
+      "id": "windmoor",
+      "name": "Windmoor",
+      "region": "estepes",
+      "adjacentTo": ["farsteppe", "sandgate", "scorchend"]
+    },
+    {
+      "id": "dunereach",
+      "name": "Dunereach",
+      "region": "deserto",
+      "adjacentTo": ["thornfen", "sandgate", "emberwaste"]
+    },
+    {
+      "id": "sandgate",
+      "name": "Sandgate",
+      "region": "deserto",
+      "adjacentTo": ["windmoor", "dunereach", "scorchend"]
+    },
+    {
+      "id": "scorchend",
+      "name": "Scorchend",
+      "region": "deserto",
+      "adjacentTo": ["windmoor", "sandgate", "emberwaste"]
+    },
+    {
+      "id": "emberwaste",
+      "name": "Emberwaste",
+      "region": "deserto",
+      "adjacentTo": ["dunereach", "scorchend", "sunpeak"]
+    },
+    {
+      "id": "sunpeak",
+      "name": "Sunpeak",
+      "region": "deserto",
+      "adjacentTo": ["emberwaste", "farsteppe", "wildreach"]
+    }
+  ],
+  "regions": [
+    {
+      "id": "norte",
+      "name": "Norte",
+      "goldBonus": 300,
+      "territories": ["valdoria", "eldermark", "ravencrest", "northreach", "frostwatch"]
+    },
+    {
+      "id": "central",
+      "name": "Central",
+      "goldBonus": 250,
+      "territories": ["thornheim", "ironvale", "goldmere", "oakenshire", "kingsfall"]
+    },
+    {
+      "id": "ferro",
+      "name": "Ferro",
+      "goldBonus": 200,
+      "territories": ["stonehelm", "emberfall", "drakenshire", "stormhold", "ashpeak"]
+    },
+    {
+      "id": "florestas",
+      "name": "Florestas",
+      "goldBonus": 250,
+      "territories": ["redwyn", "greenbarrow", "mistwood", "brightwall", "wolfgard"]
+    },
+    {
+      "id": "costa",
+      "name": "Costa",
+      "goldBonus": 200,
+      "territories": ["wyverncoast", "silverfen", "sunspire", "falconridge", "crownhaven"]
+    },
+    {
+      "id": "sombras",
+      "name": "Sombras",
+      "goldBonus": 200,
+      "territories": ["shadowfen", "duskmire", "ashenford", "blackhollow", "grimmoor"]
+    },
+    {
+      "id": "estepes",
+      "name": "Estepes",
+      "goldBonus": 300,
+      "territories": ["thornfen", "wildreach", "hollowmere", "farsteppe", "windmoor"]
+    },
+    {
+      "id": "deserto",
+      "name": "Deserto",
+      "goldBonus": 350,
+      "territories": ["dunereach", "sandgate", "scorchend", "emberwaste", "sunpeak"]
+    }
+  ]
+}
