@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { GameOverScreen } from '@/screens/GameOverScreen';
 import { GameScreen } from '@/screens/GameScreen';
 import { HistoryScreen } from '@/screens/HistoryScreen';
+import { HowToScreen } from '@/screens/HowToScreen';
 import { MenuScreen } from '@/screens/MenuScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { SetupScreen } from '@/screens/SetupScreen';
@@ -19,6 +20,7 @@ export default function App() {
       {screen === 'setup' && <SetupScreen />}
       {screen === 'history' && <HistoryScreen />}
       {screen === 'settings' && <SettingsScreen />}
+      {screen === 'howto' && <HowToScreen />}
       {screen === 'playing' && <GameScreen />}
       {screen === 'gameover' && <GameOverScreen />}
     </View>

@@ -78,8 +78,9 @@ Jogo completo e jogável: menu → setup → partida → fim de jogo, com:
   quantidade atual e botões +1/+5.
 - Combate com foco de baixas (investida e assalto total) + modal de resultado.
 - Turnos de IA automáticos (3 dificuldades).
-- **Telas de Histórico** (partidas finalizadas) e **Configurações**
-  (dificuldade/jogadores padrão, apagar dados).
+- **Telas de Histórico** (partidas finalizadas), **Configurações**
+  (dificuldade/jogadores padrão, apagar dados) e **Como Jogar** (regras,
+  tabela de tropas e combos).
 - Persistência via AsyncStorage (save, histórico, config).
 - **32 testes unitários** cobrindo exército, combos, combate, economia e engine.
 
@@ -94,5 +95,4 @@ aberto para tuning futuro.
 ### Próximos passos sugeridos
 
 - Animações de combate e movimentação de tropas.
-- Tela "Como Jogar".
 - Ajuste fino das posições do mapa (hoje geradas por região).

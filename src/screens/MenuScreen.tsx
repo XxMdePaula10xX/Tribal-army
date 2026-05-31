@@ -10,6 +10,7 @@ export function MenuScreen() {
   const goToSetup = useGame((s) => s.goToSetup);
   const goToHistory = useGame((s) => s.goToHistory);
   const goToSettings = useGame((s) => s.goToSettings);
+  const goToHowTo = useGame((s) => s.goToHowTo);
   const continueGame = useGame((s) => s.continueGame);
   const [hasSave, setHasSave] = useState(false);
 
@@ -30,6 +31,7 @@ export function MenuScreen() {
           disabled={!hasSave}
           onPress={() => void continueGame()}
         />
+        <Button label="Como Jogar" variant="secondary" onPress={goToHowTo} />
         <Button label="Histórico" variant="secondary" onPress={goToHistory} />
         <Button label="Configurações" variant="secondary" onPress={goToSettings} />
       </View>

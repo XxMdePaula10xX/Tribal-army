@@ -26,7 +26,14 @@ import {
 // STORE GLOBAL (zustand) — estado + ações de UI
 // ============================================================
 
-export type Screen = 'menu' | 'setup' | 'playing' | 'gameover' | 'history' | 'settings';
+export type Screen =
+  | 'menu'
+  | 'setup'
+  | 'playing'
+  | 'gameover'
+  | 'history'
+  | 'settings'
+  | 'howto';
 
 interface Store {
   screen: Screen;
@@ -41,6 +48,7 @@ interface Store {
   goToSetup: () => void;
   goToHistory: () => void;
   goToSettings: () => void;
+  goToHowTo: () => void;
   newGame: (configs: PlayerConfig[]) => void;
   continueGame: () => Promise<boolean>;
   setConfig: (config: AppConfig) => void;
@@ -86,6 +94,7 @@ export const useGame = create<Store>((set, get) => ({
   goToSetup: () => set({ screen: 'setup' }),
   goToHistory: () => set({ screen: 'history' }),
   goToSettings: () => set({ screen: 'settings' }),
+  goToHowTo: () => set({ screen: 'howto' }),
 
   setConfig: (config) => {
     set({ config });
