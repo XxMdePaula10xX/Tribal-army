@@ -74,7 +74,10 @@ Documento de design técnico completo em [`docs/GDD_TECNICO.md`](docs/GDD_TECNIC
 
 Jogo completo e jogável: menu → setup → partida → fim de jogo, com:
 
-- Mapa SVG interativo (seleção, ataque, conquista).
+- **Mapa estilizado** (SVG): territórios em polígonos orgânicos de tamanhos
+  variados (Voronoi), textura de campo (grain + sombreamento), bordas grossas
+  entre regiões, contagem de tropas e **zoom/pan** (arrastar, pinça e botões).
+  A adjacência do jogo é derivada de quais territórios se tocam.
 - **Painel de recrutamento** com rascunho — ajusta com +/− e só cobra ao
   confirmar (dá pra remover antes de recrutar).
 - **Remanejamento de tropas** entre territórios vizinhos (1 por turno).
@@ -98,7 +101,9 @@ grosso do interior. Com `DMG_SCALE = 0.6` e a economia atual, ~68% das partidas
 (só de IAs) terminam com conquista total, em média ~35 rodadas; as demais
 encerram no limite de rodadas (`MAX_ROUNDS`). Medido por `scripts/balance.ts`.
 
+A geometria do mapa é pré-computada por `scripts/genMapGeometry.ts` para
+`assets/data/mapGeometry.json` (o app não usa `d3-delaunay` em runtime).
+
 ### Próximos passos
 
-- Redesign visual do mapa (formatos/tamanhos variados, zoom/pan, regiões).
 - Animações de combate.
