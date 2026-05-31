@@ -32,3 +32,7 @@ yarn-error.*
 # IDE
 .idea/
 .vscode/
+
+# Map preview artifacts
+map-preview.png
+map-preview.svg
