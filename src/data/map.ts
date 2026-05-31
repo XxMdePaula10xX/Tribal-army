@@ -1,13 +1,18 @@
 import type { Region, Territory } from '@/types';
 
 import mapData from '../../assets/data/map.json';
+import { MAP_GEOMETRY } from './mapGeometry';
 
 // ============================================================
-// MAPA — 40 territórios, 8 regiões (carregado do JSON)
-// Fonte: GDD seção 2 / assets/data/map.json
+// MAPA — 40 territórios, 8 regiões
+// Nomes/regiões vêm do JSON; a ADJACÊNCIA é derivada da geometria
+// do mapa (Voronoi), para que o que se toca seja o que é vizinho.
 // ============================================================
 
-export const MAP_DATA: Territory[] = mapData.territories;
+export const MAP_DATA: Territory[] = mapData.territories.map((t) => ({
+  ...t,
+  adjacentTo: MAP_GEOMETRY.adjacency[t.id] ?? t.adjacentTo,
+}));
 export const REGIONS: Region[] = mapData.regions;
 
 export const MAP: Record<string, Territory> = Object.fromEntries(

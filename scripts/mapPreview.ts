@@ -10,7 +10,7 @@ import {
   MAP_W,
   REGION_COLORS,
   type Pt,
-} from '../src/components/mapGeometry';
+} from '../src/data/mapGeometry';
 
 function path(poly: Pt[]): string {
   return (
