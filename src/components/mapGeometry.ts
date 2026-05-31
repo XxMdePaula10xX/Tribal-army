@@ -52,6 +52,8 @@ interface MapGeometry {
   polygons: Record<string, Pt[]>;
   centroids: Record<string, Pt>;
   adjacency: Record<string, string[]>;
+  /** Arestas compartilhadas entre territórios de regiões diferentes. */
+  regionBorders: [Pt, Pt][];
   order: string[];
 }
 
@@ -70,6 +72,23 @@ function polygonCentroid(poly: Pt[]): Pt {
   a *= 0.5;
   if (Math.abs(a) < 1e-6) return poly[0];
   return [x / (6 * a), y / (6 * a)];
+}
+
+const key = (p: Pt) => `${Math.round(p[0])},${Math.round(p[1])}`;
+
+/** Encontra a aresta (2 vértices) compartilhada por dois polígonos vizinhos. */
+function sharedEdge(a: Pt[], b: Pt[]): [Pt, Pt] | null {
+  const bKeys = new Set(b.map(key));
+  const common: Pt[] = [];
+  const seen = new Set<string>();
+  for (const p of a) {
+    const k = key(p);
+    if (bKeys.has(k) && !seen.has(k)) {
+      seen.add(k);
+      common.push(p);
+    }
+  }
+  return common.length >= 2 ? [common[0], common[1]] : null;
 }
 
 function build(): MapGeometry {
@@ -107,15 +126,25 @@ function build(): MapGeometry {
     centroids[id] = polygonCentroid(cell);
   });
 
+  const regionOf: Record<string, string> = {};
+  MAP_DATA.forEach((t) => (regionOf[t.id] = t.region));
+
+  const regionBorders: [Pt, Pt][] = [];
+
   order.forEach((id, i) => {
     const neighbors: string[] = [];
     for (const j of voronoi.neighbors(i)) {
-      neighbors.push(order[j]);
+      const nid = order[j];
+      neighbors.push(nid);
+      if (j > i && regionOf[id] !== regionOf[nid] && polygons[id] && polygons[nid]) {
+        const edge = sharedEdge(polygons[id], polygons[nid]);
+        if (edge) regionBorders.push(edge);
+      }
     }
     adjacency[id] = neighbors;
   });
 
-  return { polygons, centroids, adjacency, order };
+  return { polygons, centroids, adjacency, regionBorders, order };
 }
 
 export const MAP_GEOMETRY: MapGeometry = build();
