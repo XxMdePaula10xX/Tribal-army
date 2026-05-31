@@ -3,8 +3,10 @@ import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { MapCanvas } from '@/components/MapCanvas';
+import { MovePanel } from '@/components/MovePanel';
 import { RecruitPanel } from '@/components/RecruitPanel';
 import { theme } from '@/components/theme';
+import { UNITS, type UnitType } from '@/constants/units';
 import { MAP } from '@/data/map';
 import { armyAttack, armyDefense, armySize, comboBonus } from '@/game';
 import { useGame } from '@/state/store';
@@ -32,18 +34,34 @@ export function GameScreen() {
 
   const [focus, setFocus] = useState<CombatFocus>('default');
   const [recruitOpen, setRecruitOpen] = useState(false);
+  const [moveMode, setMoveMode] = useState(false);
+  const [moveTargetId, setMoveTargetId] = useState<string | null>(null);
 
   const me = game.currentPlayerIdx;
   const player = game.players[me];
 
   const handleSelect = (id: string) => {
     const tappedOwner = game.territories[id].owner;
+
+    // Modo remanejar: escolher um território seu vizinho como destino.
+    if (
+      moveMode &&
+      selectedId &&
+      tappedOwner === me &&
+      id !== selectedId &&
+      MAP[selectedId].adjacentTo.includes(id)
+    ) {
+      setMoveTargetId(id);
+      return;
+    }
+
     if (id === selectedId) {
       select(null);
       return;
     }
     if (tappedOwner === me) {
       select(id);
+      setMoveMode(false);
       return;
     }
     // Território inimigo: vira alvo se adjacente ao território selecionado.
@@ -53,6 +71,12 @@ export function GameScreen() {
       select(id);
     }
   };
+
+  // Tem algum vizinho seu para onde remanejar?
+  const hasOwnNeighbor =
+    !!selectedId &&
+    game.territories[selectedId].owner === me &&
+    MAP[selectedId].adjacentTo.some((n) => game.territories[n].owner === me);
 
   const selected = selectedId ? game.territories[selectedId] : null;
   const target = attackTargetId ? game.territories[attackTargetId] : null;
@@ -94,9 +118,30 @@ export function GameScreen() {
             <Text style={styles.hint}>Toque num território seu para começar.</Text>
           )}
 
-          {/* Recrutamento */}
+          {/* Recrutamento + remanejamento */}
           {selected?.owner === me && (
-            <Button label="⚒️ Recrutar tropas" onPress={() => setRecruitOpen(true)} />
+            <View style={styles.ownActions}>
+              <Button
+                label="⚒️ Recrutar"
+                onPress={() => setRecruitOpen(true)}
+                style={styles.flex1}
+              />
+              {hasOwnNeighbor && (
+                <Button
+                  label={
+                    player.fortifiedThisTurn
+                      ? '↔️ Remanejado'
+                      : moveMode
+                        ? '↔️ Toque o destino'
+                        : '↔️ Remanejar'
+                  }
+                  variant={moveMode ? 'primary' : 'secondary'}
+                  disabled={player.fortifiedThisTurn}
+                  onPress={() => setMoveMode((m) => !m)}
+                  style={styles.flex1}
+                />
+              )}
+            </View>
           )}
 
           {/* Ataque */}
@@ -157,10 +202,18 @@ export function GameScreen() {
                   Defensor: {Math.round(lastResult.dRes)} de dano
                   {lastResult.dComboNames.length ? ` (${lastResult.dComboNames.join(', ')})` : ''}
                 </Text>
-                <Text style={styles.modalLine}>
-                  Baixas — atacante: {lastCombat?.reduce((s, r) => s + r.aLoss, 0)} | defensor:{' '}
-                  {lastCombat?.reduce((s, r) => s + r.dLoss, 0)}
-                </Text>
+                <View style={styles.lossBlock}>
+                  <Text style={styles.lossLabel}>
+                    Baixas do atacante ({lastCombat?.reduce((s, r) => s + r.aLoss, 0)}):
+                  </Text>
+                  <LossList losses={aggregateLosses(lastCombat, 'aLossByType')} />
+                </View>
+                <View style={styles.lossBlock}>
+                  <Text style={styles.lossLabel}>
+                    Baixas do defensor ({lastCombat?.reduce((s, r) => s + r.dLoss, 0)}):
+                  </Text>
+                  <LossList losses={aggregateLosses(lastCombat, 'dLossByType')} />
+                </View>
                 <Text style={[styles.modalResult, resultStyle(lastResult)]}>
                   {lastResult.conquered
                     ? '🏰 Conquistado!'
@@ -185,6 +238,18 @@ export function GameScreen() {
         />
       )}
 
+      {selectedId && moveTargetId && (
+        <MovePanel
+          fromId={selectedId}
+          toId={moveTargetId}
+          visible={!!moveTargetId}
+          onClose={() => {
+            setMoveTargetId(null);
+            setMoveMode(false);
+          }}
+        />
+      )}
+
       <Button label="Menu" variant="secondary" onPress={goToMenu} style={styles.menuBtn} />
     </View>
   );
@@ -195,6 +260,36 @@ function resultStyle(r: CombatResult) {
   if (r.mutualWipe) return { color: theme.warning };
   if (r.ongoing) return { color: theme.gold };
   return { color: theme.danger };
+}
+
+/** Soma as baixas por tipo ao longo de todos os rounds de um combate. */
+function aggregateLosses(
+  results: CombatResult[] | null,
+  key: 'aLossByType' | 'dLossByType'
+): Partial<Record<UnitType, number>> {
+  const total: Partial<Record<UnitType, number>> = {};
+  for (const r of results ?? []) {
+    for (const [k, n] of Object.entries(r[key]) as [UnitType, number][]) {
+      total[k] = (total[k] || 0) + n;
+    }
+  }
+  return total;
+}
+
+function LossList({ losses }: { losses: Partial<Record<UnitType, number>> }) {
+  const entries = (Object.entries(losses) as [UnitType, number][]).filter(([, n]) => n > 0);
+  if (entries.length === 0) {
+    return <Text style={styles.lossNone}>nenhuma</Text>;
+  }
+  return (
+    <View style={styles.lossRow}>
+      {entries.map(([k, n]) => (
+        <Text key={k} style={styles.lossItem}>
+          {UNITS[k].icon} {UNITS[k].name} ×{n}
+        </Text>
+      ))}
+    </View>
+  );
 }
 
 function TerritoryInfo({ id }: { id: string }) {
@@ -249,6 +344,12 @@ const styles = StyleSheet.create({
   terrRegion: { color: theme.textDim, fontSize: 13, fontWeight: '400' },
   terrLine: { color: theme.text, marginTop: 4 },
   combo: { color: theme.success, marginTop: 4, fontStyle: 'italic' },
+  ownActions: { flexDirection: 'row', gap: 8 },
+  lossBlock: { gap: 2 },
+  lossLabel: { color: theme.textDim, fontSize: 13, fontWeight: '600' },
+  lossRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10, rowGap: 2 },
+  lossItem: { color: theme.text, fontSize: 13 },
+  lossNone: { color: theme.textDim, fontSize: 13, fontStyle: 'italic' },
   attackBox: {
     backgroundColor: theme.bgPanelAlt,
     borderRadius: 10,

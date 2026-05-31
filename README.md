@@ -75,25 +75,30 @@ Documento de design técnico completo em [`docs/GDD_TECNICO.md`](docs/GDD_TECNIC
 Jogo completo e jogável: menu → setup → partida → fim de jogo, com:
 
 - Mapa SVG interativo (seleção, ataque, conquista).
-- **Painel de recrutamento completo** — os 12 tipos com stats, custo,
-  quantidade atual e botões +1/+5.
-- Combate com foco de baixas (investida e assalto total) + modal de resultado.
+- **Painel de recrutamento** com rascunho — ajusta com +/− e só cobra ao
+  confirmar (dá pra remover antes de recrutar).
+- **Remanejamento de tropas** entre territórios vizinhos (1 por turno).
+- Combate com foco de baixas (investida e assalto total) e **relatório
+  detalhado** mostrando quais tropas morreram de cada lado.
 - Turnos de IA automáticos (3 dificuldades).
-- **Telas de Histórico** (partidas finalizadas), **Configurações**
-  (dificuldade/jogadores padrão, apagar dados) e **Como Jogar** (regras,
-  tabela de tropas e combos).
+- **Telas de Histórico**, **Configurações** e **Como Jogar**.
 - Persistência via AsyncStorage (save, histórico, config).
-- **32 testes unitários** cobrindo exército, combos, combate, economia e engine.
+- **34 testes unitários** cobrindo exército, combos, combate, economia e engine.
+
+### Economia
+
+- Renda base: `GOLD_PER_TERRITORY = 150` por território.
+- Bônus de região pago só ao controlar a região **inteira**, proporcional ao
+  número de territórios (`REGION_BONUS_PER_TERRITORY = 30` por território).
 
 ### Balanceamento
 
 A IA recruta concentrando forças numa cabeça de ponte e fortifica avançando o
-grosso do interior; com `DMG_SCALE = 0.6` as partidas decidem em ~78% dos casos
-em média ~30 rodadas (medido pela harness). O caso de 4 IAs difíceis ainda pode
-empatar por estagnação e encerra no limite de rodadas (`MAX_ROUNDS`) — knob
-aberto para tuning futuro.
+grosso do interior. Com `DMG_SCALE = 0.6` e a economia atual, ~68% das partidas
+(só de IAs) terminam com conquista total, em média ~35 rodadas; as demais
+encerram no limite de rodadas (`MAX_ROUNDS`). Medido por `scripts/balance.ts`.
 
-### Próximos passos sugeridos
+### Próximos passos
 
-- Animações de combate e movimentação de tropas.
-- Ajuste fino das posições do mapa (hoje geradas por região).
+- Redesign visual do mapa (formatos/tamanhos variados, zoom/pan, regiões).
+- Animações de combate.

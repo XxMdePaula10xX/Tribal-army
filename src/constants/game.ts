@@ -3,8 +3,11 @@
 // Fonte: GDD seções 4, 6, 7
 // ============================================================
 
-export const INITIAL_GOLD = 500;
-export const GOLD_PER_TERRITORY = 200;
+export const INITIAL_GOLD = 350;
+/** Renda base por território controlado. */
+export const GOLD_PER_TERRITORY = 150;
+/** Bônus por território de uma região, pago só ao controlar a região inteira. */
+export const REGION_BONUS_PER_TERRITORY = 30;
 export const MIN_ARMY_SIZE_TO_ATTACK = 2;
 export const MAX_ROUNDS = 100;
 export const MAX_COMBAT_ROUNDS = 20;

@@ -2,10 +2,11 @@ import {
   CARD_TRADE_BASE_REWARD,
   CARD_TRADE_MAX_BONUS,
   GOLD_PER_TERRITORY,
+  REGION_BONUS_PER_TERRITORY,
   TOTAL_TERRITORIES,
 } from '@/constants/game';
 import { UNITS, type UnitType } from '@/constants/units';
-import { MAP, getRegion } from '@/data/map';
+import { REGIONS } from '@/data/map';
 import type { Army, Owner, TerritoryState } from '@/types';
 
 // ============================================================
@@ -23,9 +24,24 @@ export function controlledTerritories(
     .map(([id]) => id);
 }
 
+/** Bônus de uma região quando controlada por inteiro: proporcional ao tamanho. */
+export function regionBonusValue(memberCount: number): number {
+  return memberCount * REGION_BONUS_PER_TERRITORY;
+}
+
+/** Regiões totalmente controladas por um dono. */
+export function controlledRegions(
+  territories: Record<string, TerritoryState>,
+  owner: Owner
+): string[] {
+  return REGIONS.filter((r) =>
+    r.territories.every((id) => territories[id]?.owner === owner)
+  ).map((r) => r.id);
+}
+
 /**
- * Renda de uma rodada: 200 por território + bônus regional
- * por território de cada região controlada.
+ * Renda de uma rodada: base por território + bônus por cada região controlada
+ * por inteiro (proporcional ao número de territórios da região).
  */
 export function turnIncome(
   territories: Record<string, TerritoryState>,
@@ -34,10 +50,10 @@ export function turnIncome(
   const owned = controlledTerritories(territories, owner);
   let gold = owned.length * GOLD_PER_TERRITORY;
 
-  // Bônus regional aplica-se por território possuído (GDD seção 6.1).
-  for (const id of owned) {
-    const region = getRegion(MAP[id]?.region ?? '');
-    if (region) gold += region.goldBonus;
+  for (const r of REGIONS) {
+    if (r.territories.every((id) => territories[id]?.owner === owner)) {
+      gold += regionBonusValue(r.territories.length);
+    }
   }
   return gold;
 }
