@@ -63,18 +63,16 @@ export function aiTakeTurn(state: GameState): GameState {
   const budget = Math.floor(player.gold * AI_AGGRESSION[player.difficulty]);
   const targets = borderIds(s, idx);
   if (targets.length > 0 && budget > 0) {
-    // Reforça a fronteira mais ameaçada (vizinho inimigo mais forte).
+    // Concentra forças numa cabeça de ponte: a fronteira voltada para o
+    // vizinho inimigo MAIS FRACO (melhor oportunidade de conquista).
     const reinforceId = targets
-      .map((id) => ({
-        id,
-        threat: Math.max(
-          ...MAP[id].adjacentTo
-            .filter((n) => s.territories[n].owner !== idx)
-            .map((n) => effectiveAttack(s.territories[n].army)),
-          0
-        ),
-      }))
-      .sort((a, b) => b.threat - a.threat)[0].id;
+      .map((id) => {
+        const enemyDefs = MAP[id].adjacentTo
+          .filter((n) => s.territories[n].owner !== idx)
+          .map((n) => effectiveDefense(s, n));
+        return { id, weakest: enemyDefs.length ? Math.min(...enemyDefs) : Infinity };
+      })
+      .sort((a, b) => a.weakest - b.weakest)[0].id;
 
     const batch: Partial<Army> = {};
     let spent = 0;
@@ -132,20 +130,22 @@ export function aiTakeTurn(state: GameState): GameState {
     if (ownedIds(s, idx).length === before && s.territories[best.fromId].owner !== idx) break;
   }
 
-  // --- 3. Fortificação (1 movimento: interior → fronteira) ---
-  const interiors = ownedIds(s, idx).filter(
-    (id) => !MAP[id].adjacentTo.some((n) => s.territories[n].owner !== idx)
-  );
+  // --- 3. Fortificação: concentra o interior na fronteira (1 movimento) ---
+  const interiors = ownedIds(s, idx)
+    .filter((id) => !MAP[id].adjacentTo.some((n) => s.territories[n].owner !== idx))
+    .filter((id) => armySize(s.territories[id].army) > 1)
+    .sort((a, b) => armySize(s.territories[b].army) - armySize(s.territories[a].army));
   const borders = borderIds(s, idx);
-  const source = interiors.find((id) => armySize(s.territories[id].army) > 1);
+  const source = interiors[0];
   if (source && borders.length > 0) {
     const dest = borders.find((id) => MAP[source].adjacentTo.includes(id));
     if (dest) {
+      // Move tudo menos 1 tropa para reforçar o avanço.
       const army = s.territories[source].army;
-      const moveType = (Object.keys(army) as UnitType[]).find((k) => army[k] > 0);
-      if (moveType) {
-        s = fortify(s, idx, source, dest, { [moveType]: 1 }).state;
-      }
+      const batch: Partial<Army> = { ...army };
+      const keep = (Object.keys(batch) as UnitType[]).find((k) => (batch[k] || 0) > 0);
+      if (keep) batch[keep] = (batch[keep] || 0) - 1;
+      s = fortify(s, idx, source, dest, batch).state;
     }
   }
 

@@ -7,7 +7,7 @@ atacando vizinhos e gerenciando ouro contra IAs.
 ## Stack
 
 - **Expo** (managed) + **TypeScript**
-- **@shopify/react-native-skia** — renderização do mapa (canvas 2D)
+- **react-native-svg** — renderização do mapa (nós e adjacências)
 - **zustand** — estado global
 - **@react-native-async-storage/async-storage** — save/load
 
@@ -18,8 +18,23 @@ npm install
 npx expo start
 ```
 
-Abra no **Expo Go** (Android/iOS) lendo o QR code, ou rode em emulador com
-`npm run android` / `npm run ios`. Verificação de tipos: `npm run typecheck`.
+Escaneie o QR code com o app **Expo Go** (Android/iOS) — todas as dependências
+nativas usadas (`react-native-svg`) já vêm embutidas no Expo Go, então não é
+preciso development build. Em emulador: `npm run android` / `npm run ios`.
+
+```bash
+npm run typecheck   # checagem de tipos (tsc)
+npm test            # testes unitários (jest)
+```
+
+### Harness de balanceamento
+
+`scripts/balance.ts` roda dezenas de partidas só de IAs e mede quantas são
+decisivas e a rodada média — útil para ajustar `DMG_SCALE` e a IA:
+
+```bash
+npx tsx scripts/balance.ts
+```
 
 ## Estrutura
 
@@ -38,7 +53,7 @@ src/
 │   └── setup.ts     criação da partida
 ├── state/       store zustand (navegação + ações)
 ├── storage/     persistência (AsyncStorage)
-├── components/  MapCanvas (Skia), Button, layout, tema
+├── components/  MapCanvas (SVG), Button, RecruitPanel, layout, tema
 └── screens/     Menu, Setup, Game, GameOver
 ```
 
@@ -57,13 +72,28 @@ Documento de design técnico completo em [`docs/GDD_TECNICO.md`](docs/GDD_TECNIC
 
 ## Status
 
-Base jogável: menu → setup → partida (mapa Skia, recrutamento, ataque com
-foco, conquista, turnos de IA automáticos, save/load) → fim de jogo.
+Jogo completo e jogável: menu → setup → partida → fim de jogo, com:
+
+- Mapa SVG interativo (seleção, ataque, conquista).
+- **Painel de recrutamento completo** — os 12 tipos com stats, custo,
+  quantidade atual e botões +1/+5.
+- Combate com foco de baixas (investida e assalto total) + modal de resultado.
+- Turnos de IA automáticos (3 dificuldades).
+- **Telas de Histórico** (partidas finalizadas), **Configurações**
+  (dificuldade/jogadores padrão, apagar dados) e **Como Jogar** (regras,
+  tabela de tropas e combos).
+- Persistência via AsyncStorage (save, histórico, config).
+- **32 testes unitários** cobrindo exército, combos, combate, economia e engine.
+
+### Balanceamento
+
+A IA recruta concentrando forças numa cabeça de ponte e fortifica avançando o
+grosso do interior; com `DMG_SCALE = 0.6` as partidas decidem em ~78% dos casos
+em média ~30 rodadas (medido pela harness). O caso de 4 IAs difíceis ainda pode
+empatar por estagnação e encerra no limite de rodadas (`MAX_ROUNDS`) — knob
+aberto para tuning futuro.
 
 ### Próximos passos sugeridos
 
-- Painel de recrutamento completo (accordion com os 12 tipos).
 - Animações de combate e movimentação de tropas.
-- Tela de histórico de partidas e configurações.
-- Testes unitários da lógica de combate/economia.
 - Ajuste fino das posições do mapa (hoje geradas por região).

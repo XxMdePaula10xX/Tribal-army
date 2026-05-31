@@ -11,13 +11,29 @@ import {
   tradeCards as engineTradeCards,
   type PlayerConfig,
 } from '@/game';
-import { appendHistory, loadGame, saveGame } from '@/storage/persistence';
+import {
+  appendHistory,
+  loadConfig,
+  loadGame,
+  saveConfig,
+  saveGame,
+  summarizeGame,
+  type AppConfig,
+  DEFAULT_CONFIG,
+} from '@/storage/persistence';
 
 // ============================================================
 // STORE GLOBAL (zustand) — estado + ações de UI
 // ============================================================
 
-export type Screen = 'menu' | 'setup' | 'playing' | 'gameover';
+export type Screen =
+  | 'menu'
+  | 'setup'
+  | 'playing'
+  | 'gameover'
+  | 'history'
+  | 'settings'
+  | 'howto';
 
 interface Store {
   screen: Screen;
@@ -25,12 +41,17 @@ interface Store {
   selectedId: string | null;
   attackTargetId: string | null;
   lastCombat: CombatResult[] | null;
+  config: AppConfig;
 
   // Navegação
   goToMenu: () => void;
   goToSetup: () => void;
+  goToHistory: () => void;
+  goToSettings: () => void;
+  goToHowTo: () => void;
   newGame: (configs: PlayerConfig[]) => void;
   continueGame: () => Promise<boolean>;
+  setConfig: (config: AppConfig) => void;
 
   // Interação no mapa
   select: (id: string | null) => void;
@@ -67,9 +88,18 @@ export const useGame = create<Store>((set, get) => ({
   selectedId: null,
   attackTargetId: null,
   lastCombat: null,
+  config: DEFAULT_CONFIG,
 
   goToMenu: () => set({ screen: 'menu', game: null, selectedId: null, attackTargetId: null }),
   goToSetup: () => set({ screen: 'setup' }),
+  goToHistory: () => set({ screen: 'history' }),
+  goToSettings: () => set({ screen: 'settings' }),
+  goToHowTo: () => set({ screen: 'howto' }),
+
+  setConfig: (config) => {
+    set({ config });
+    void saveConfig(config);
+  },
 
   newGame: (configs) => {
     const game = createGame(configs);
@@ -135,6 +165,9 @@ export const useGame = create<Store>((set, get) => ({
       attackTargetId: null,
     });
     void saveGame(next);
-    if (next.phase === 'gameover') void appendHistory(next);
+    if (next.phase === 'gameover') void appendHistory(summarizeGame(next));
   },
 }));
+
+// Carrega as configurações persistidas ao iniciar.
+void loadConfig().then((config) => useGame.setState({ config }));

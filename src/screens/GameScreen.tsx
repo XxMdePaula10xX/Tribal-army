@@ -3,14 +3,12 @@ import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { MapCanvas } from '@/components/MapCanvas';
+import { RecruitPanel } from '@/components/RecruitPanel';
 import { theme } from '@/components/theme';
-import { UNITS } from '@/constants/units';
 import { MAP } from '@/data/map';
 import { armyAttack, armyDefense, armySize, comboBonus } from '@/game';
 import { useGame } from '@/state/store';
 import type { CombatFocus, CombatResult } from '@/types';
-
-const QUICK_UNITS = ['lanceiro', 'espadachim', 'arqueiro', 'cavalaria'] as const;
 
 const FOCUS_OPTIONS: { id: CombatFocus; label: string }[] = [
   { id: 'default', label: 'Frágeis' },
@@ -26,7 +24,6 @@ export function GameScreen() {
   const lastCombat = useGame((s) => s.lastCombat);
   const select = useGame((s) => s.select);
   const setAttackTarget = useGame((s) => s.setAttackTarget);
-  const recruit = useGame((s) => s.recruit);
   const attack = useGame((s) => s.attack);
   const tradeCards = useGame((s) => s.tradeCards);
   const endTurn = useGame((s) => s.endTurn);
@@ -34,6 +31,7 @@ export function GameScreen() {
   const goToMenu = useGame((s) => s.goToMenu);
 
   const [focus, setFocus] = useState<CombatFocus>('default');
+  const [recruitOpen, setRecruitOpen] = useState(false);
 
   const me = game.currentPlayerIdx;
   const player = game.players[me];
@@ -96,20 +94,9 @@ export function GameScreen() {
             <Text style={styles.hint}>Toque num território seu para começar.</Text>
           )}
 
-          {/* Recrutamento rápido */}
+          {/* Recrutamento */}
           {selected?.owner === me && (
-            <View style={styles.recruitRow}>
-              {QUICK_UNITS.map((k) => (
-                <Button
-                  key={k}
-                  label={`${UNITS[k].icon} ${UNITS[k].cost}`}
-                  variant="secondary"
-                  disabled={player.gold < UNITS[k].cost}
-                  onPress={() => recruit(selectedId!, { [k]: 1 })}
-                  style={styles.recruitBtn}
-                />
-              ))}
-            </View>
+            <Button label="⚒️ Recrutar tropas" onPress={() => setRecruitOpen(true)} />
           )}
 
           {/* Ataque */}
@@ -190,6 +177,14 @@ export function GameScreen() {
         </View>
       </Modal>
 
+      {selectedId && selected?.owner === me && (
+        <RecruitPanel
+          territoryId={selectedId}
+          visible={recruitOpen}
+          onClose={() => setRecruitOpen(false)}
+        />
+      )}
+
       <Button label="Menu" variant="secondary" onPress={goToMenu} style={styles.menuBtn} />
     </View>
   );
@@ -254,8 +249,6 @@ const styles = StyleSheet.create({
   terrRegion: { color: theme.textDim, fontSize: 13, fontWeight: '400' },
   terrLine: { color: theme.text, marginTop: 4 },
   combo: { color: theme.success, marginTop: 4, fontStyle: 'italic' },
-  recruitRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  recruitBtn: { flexGrow: 1, paddingHorizontal: 10 },
   attackBox: {
     backgroundColor: theme.bgPanelAlt,
     borderRadius: 10,
