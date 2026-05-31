@@ -1,6 +1,6 @@
-import { Canvas, Circle, Group, Line, vec } from '@shopify/react-native-skia';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Line } from 'react-native-svg';
 
 import { armySize } from '@/game/army';
 import type { GameState, Player } from '@/types';
@@ -47,23 +47,23 @@ export function MapCanvas({
     <View style={styles.container} onLayout={onLayout}>
       {ready && (
         <>
-          <Canvas style={StyleSheet.absoluteFill}>
+          <Svg width={size.w} height={size.h} style={StyleSheet.absoluteFill}>
             {/* Linhas de adjacência */}
-            <Group>
-              {ADJACENCY_PAIRS.map(([a, b]) => {
-                const pa = px(a);
-                const pb = px(b);
-                return (
-                  <Line
-                    key={`${a}-${b}`}
-                    p1={vec(pa.x, pa.y)}
-                    p2={vec(pb.x, pb.y)}
-                    color={theme.border}
-                    strokeWidth={1.5}
-                  />
-                );
-              })}
-            </Group>
+            {ADJACENCY_PAIRS.map(([a, b]) => {
+              const pa = px(a);
+              const pb = px(b);
+              return (
+                <Line
+                  key={`${a}-${b}`}
+                  x1={pa.x}
+                  y1={pa.y}
+                  x2={pb.x}
+                  y2={pb.y}
+                  stroke={theme.border}
+                  strokeWidth={1.5}
+                />
+              );
+            })}
 
             {/* Nós dos territórios */}
             {Object.keys(territories).map((id) => {
@@ -76,22 +76,17 @@ export function MapCanvas({
                     ? theme.danger
                     : null;
               return (
-                <Group key={id}>
+                <React.Fragment key={id}>
                   {highlight && (
-                    <Circle cx={p.x} cy={p.y} r={NODE_RADIUS + 4} color={highlight} />
+                    <Circle cx={p.x} cy={p.y} r={NODE_RADIUS + 4} fill={highlight} />
                   )}
-                  <Circle
-                    cx={p.x}
-                    cy={p.y}
-                    r={NODE_RADIUS}
-                    color={ownerColor(t.owner, players)}
-                  />
-                </Group>
+                  <Circle cx={p.x} cy={p.y} r={NODE_RADIUS} fill={ownerColor(t.owner, players)} />
+                </React.Fragment>
               );
             })}
-          </Canvas>
+          </Svg>
 
-          {/* Camada de toque + rótulos (RN sobre o Skia) */}
+          {/* Camada de toque + rótulos (RN sobre o SVG) */}
           {Object.keys(territories).map((id) => {
             const p = px(id);
             const count = armySize(territories[id].army);
@@ -99,10 +94,7 @@ export function MapCanvas({
               <Pressable
                 key={id}
                 onPress={() => onSelect(id)}
-                style={[
-                  styles.node,
-                  { left: p.x - NODE_RADIUS, top: p.y - NODE_RADIUS },
-                ]}
+                style={[styles.node, { left: p.x - NODE_RADIUS, top: p.y - NODE_RADIUS }]}
                 hitSlop={6}
               >
                 <Text style={styles.count}>{count}</Text>

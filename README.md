@@ -7,7 +7,7 @@ atacando vizinhos e gerenciando ouro contra IAs.
 ## Stack
 
 - **Expo** (managed) + **TypeScript**
-- **@shopify/react-native-skia** — renderização do mapa (canvas 2D)
+- **react-native-svg** — renderização do mapa (nós e adjacências)
 - **zustand** — estado global
 - **@react-native-async-storage/async-storage** — save/load
 
@@ -18,8 +18,9 @@ npm install
 npx expo start
 ```
 
-Abra no **Expo Go** (Android/iOS) lendo o QR code, ou rode em emulador com
-`npm run android` / `npm run ios`.
+Escaneie o QR code com o app **Expo Go** (Android/iOS) — todas as dependências
+nativas usadas (`react-native-svg`) já vêm embutidas no Expo Go, então não é
+preciso development build. Em emulador: `npm run android` / `npm run ios`.
 
 ```bash
 npm run typecheck   # checagem de tipos (tsc)
@@ -52,7 +53,7 @@ src/
 │   └── setup.ts     criação da partida
 ├── state/       store zustand (navegação + ações)
 ├── storage/     persistência (AsyncStorage)
-├── components/  MapCanvas (Skia), Button, layout, tema
+├── components/  MapCanvas (SVG), Button, RecruitPanel, layout, tema
 └── screens/     Menu, Setup, Game, GameOver
 ```
 
@@ -73,7 +74,7 @@ Documento de design técnico completo em [`docs/GDD_TECNICO.md`](docs/GDD_TECNIC
 
 Jogo completo e jogável: menu → setup → partida → fim de jogo, com:
 
-- Mapa Skia interativo (seleção, ataque, conquista).
+- Mapa SVG interativo (seleção, ataque, conquista).
 - **Painel de recrutamento completo** — os 12 tipos com stats, custo,
   quantidade atual e botões +1/+5.
 - Combate com foco de baixas (investida e assalto total) + modal de resultado.
