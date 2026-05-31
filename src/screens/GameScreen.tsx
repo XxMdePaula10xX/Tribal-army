@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
+import { CombatModal } from '@/components/CombatModal';
 import { MapCanvas } from '@/components/MapCanvas';
 import { MovePanel } from '@/components/MovePanel';
 import { RecruitPanel } from '@/components/RecruitPanel';
 import { theme } from '@/components/theme';
-import { UNITS, type UnitType } from '@/constants/units';
 import { MAP } from '@/data/map';
 import { armyAttack, armyDefense, armySize, comboBonus } from '@/game';
 import { useGame } from '@/state/store';
-import type { CombatFocus, CombatResult } from '@/types';
+import type { CombatFocus } from '@/types';
 
 const FOCUS_OPTIONS: { id: CombatFocus; label: string }[] = [
   { id: 'default', label: 'Frágeis' },
@@ -82,11 +82,6 @@ export function GameScreen() {
   const target = attackTargetId ? game.territories[attackTargetId] : null;
   const canAttack =
     !!selected && selected.owner === me && armySize(selected.army) >= 2 && !!target;
-
-  const lastResult = useMemo(
-    () => (lastCombat && lastCombat.length ? lastCombat[lastCombat.length - 1] : null),
-    [lastCombat]
-  );
 
   return (
     <View style={styles.container}>
@@ -187,48 +182,7 @@ export function GameScreen() {
         </View>
       </View>
 
-      {/* Modal de combate */}
-      <Modal visible={!!lastResult} transparent animationType="fade" onRequestClose={dismissCombat}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Resultado do Combate</Text>
-            {lastResult && (
-              <>
-                <Text style={styles.modalLine}>
-                  Atacante: {Math.round(lastResult.aRes)} de dano
-                  {lastResult.aComboNames.length ? ` (${lastResult.aComboNames.join(', ')})` : ''}
-                </Text>
-                <Text style={styles.modalLine}>
-                  Defensor: {Math.round(lastResult.dRes)} de dano
-                  {lastResult.dComboNames.length ? ` (${lastResult.dComboNames.join(', ')})` : ''}
-                </Text>
-                <View style={styles.lossBlock}>
-                  <Text style={styles.lossLabel}>
-                    Baixas do atacante ({lastCombat?.reduce((s, r) => s + r.aLoss, 0)}):
-                  </Text>
-                  <LossList losses={aggregateLosses(lastCombat, 'aLossByType')} />
-                </View>
-                <View style={styles.lossBlock}>
-                  <Text style={styles.lossLabel}>
-                    Baixas do defensor ({lastCombat?.reduce((s, r) => s + r.dLoss, 0)}):
-                  </Text>
-                  <LossList losses={aggregateLosses(lastCombat, 'dLossByType')} />
-                </View>
-                <Text style={[styles.modalResult, resultStyle(lastResult)]}>
-                  {lastResult.conquered
-                    ? '🏰 Conquistado!'
-                    : lastResult.mutualWipe
-                      ? '☠️ Aniquilação mútua'
-                      : lastResult.ongoing
-                        ? '⚔️ Batalha continua'
-                        : '🛡️ Ataque repelido'}
-                </Text>
-              </>
-            )}
-            <Button label="Continuar" onPress={dismissCombat} />
-          </View>
-        </View>
-      </Modal>
+      <CombatModal results={lastCombat} onDismiss={dismissCombat} />
 
       {selectedId && selected?.owner === me && (
         <RecruitPanel
@@ -251,43 +205,6 @@ export function GameScreen() {
       )}
 
       <Button label="Menu" variant="secondary" onPress={goToMenu} style={styles.menuBtn} />
-    </View>
-  );
-}
-
-function resultStyle(r: CombatResult) {
-  if (r.conquered) return { color: theme.success };
-  if (r.mutualWipe) return { color: theme.warning };
-  if (r.ongoing) return { color: theme.gold };
-  return { color: theme.danger };
-}
-
-/** Soma as baixas por tipo ao longo de todos os rounds de um combate. */
-function aggregateLosses(
-  results: CombatResult[] | null,
-  key: 'aLossByType' | 'dLossByType'
-): Partial<Record<UnitType, number>> {
-  const total: Partial<Record<UnitType, number>> = {};
-  for (const r of results ?? []) {
-    for (const [k, n] of Object.entries(r[key]) as [UnitType, number][]) {
-      total[k] = (total[k] || 0) + n;
-    }
-  }
-  return total;
-}
-
-function LossList({ losses }: { losses: Partial<Record<UnitType, number>> }) {
-  const entries = (Object.entries(losses) as [UnitType, number][]).filter(([, n]) => n > 0);
-  if (entries.length === 0) {
-    return <Text style={styles.lossNone}>nenhuma</Text>;
-  }
-  return (
-    <View style={styles.lossRow}>
-      {entries.map(([k, n]) => (
-        <Text key={k} style={styles.lossItem}>
-          {UNITS[k].icon} {UNITS[k].name} ×{n}
-        </Text>
-      ))}
     </View>
   );
 }
@@ -345,11 +262,6 @@ const styles = StyleSheet.create({
   terrLine: { color: theme.text, marginTop: 4 },
   combo: { color: theme.success, marginTop: 4, fontStyle: 'italic' },
   ownActions: { flexDirection: 'row', gap: 8 },
-  lossBlock: { gap: 2 },
-  lossLabel: { color: theme.textDim, fontSize: 13, fontWeight: '600' },
-  lossRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10, rowGap: 2 },
-  lossItem: { color: theme.text, fontSize: 13 },
-  lossNone: { color: theme.textDim, fontSize: 13, fontStyle: 'italic' },
   attackBox: {
     backgroundColor: theme.bgPanelAlt,
     borderRadius: 10,
@@ -370,25 +282,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.border,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  modal: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: theme.bgPanel,
-    borderRadius: 14,
-    padding: 20,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  modalTitle: { color: theme.gold, fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  modalLine: { color: theme.text, fontSize: 14 },
-  modalResult: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginVertical: 6 },
   menuBtn: { position: 'absolute', top: 48, right: 12, paddingVertical: 6, paddingHorizontal: 12 },
 });
