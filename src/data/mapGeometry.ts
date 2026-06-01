@@ -1,4 +1,5 @@
 import geo from '../../assets/data/mapGeometry.json';
+import mapData from '../../assets/data/map.json';
 
 // ============================================================
 // GEOMETRIA DO MAPA — dados pré-computados (Voronoi + bordas
@@ -8,6 +9,11 @@ import geo from '../../assets/data/mapGeometry.json';
 
 export type Pt = [number, number];
 
+export interface River {
+  ribbon: Pt[];
+  spine: Pt[];
+}
+
 interface MapGeometry {
   width: number;
   height: number;
@@ -16,7 +22,7 @@ interface MapGeometry {
   centroids: Record<string, Pt>;
   adjacency: Record<string, string[]>;
   regionBorders: Pt[][];
-  rivers: Pt[][];
+  rivers: River[];
 }
 
 export const MAP_GEOMETRY = geo as unknown as MapGeometry;
@@ -93,3 +99,16 @@ export const BIOME_MARKS: Record<Biome, Mark[]> = (() => {
 })();
 
 export const TILE = 50;
+
+// ----- Nomes e centroides de região (para rótulos no mapa) -----
+
+const regions = (mapData as { regions: { id: string; name: string; territories: string[] }[] })
+  .regions;
+
+export const REGION_LABELS: { name: string; x: number; y: number }[] = regions.map((r) => {
+  const members = r.territories.filter((id) => MAP_GEOMETRY.centroids[id]);
+  const n = members.length || 1;
+  const x = members.reduce((s, id) => s + MAP_GEOMETRY.centroids[id][0], 0) / n;
+  const y = members.reduce((s, id) => s + MAP_GEOMETRY.centroids[id][1], 0) / n;
+  return { name: r.name, x, y };
+});

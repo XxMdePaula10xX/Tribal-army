@@ -1,6 +1,6 @@
 // Pré-computa a geometria do mapa para assets/data/mapGeometry.json.
-// Bordas orgânicas (onduladas), rios e bordas de região como polilinhas.
-// Rode com: npx tsx scripts/genMapGeometry.ts
+// Bordas orgânicas, rios com largura variável (um deles corta a adjacência),
+// e bordas de região como polilinhas. Rode: npx tsx scripts/genMapGeometry.ts
 import { writeFileSync } from 'fs';
 
 import { Delaunay } from 'd3-delaunay';
@@ -68,6 +68,7 @@ const delaunay = Delaunay.from(points, (p) => p[0], (p) => p[1]);
 const voronoi = delaunay.voronoi([0, 0, W, H]);
 const cells: (Pt[] | null)[] = order.map((_, i) => voronoi.cellPolygon(i) as Pt[] | null);
 
+// ---- Bordas onduladas ----
 const k1 = (p: Pt) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
 const edgeKey = (a: Pt, b: Pt) => {
   const ka = k1(a);
@@ -142,6 +143,7 @@ order.forEach((id, i) => {
   if (cells[i]) centroids[id] = rp(centroidOf(cells[i]!));
 });
 
+// Adjacência (Voronoi) — pode ser podada pelo rio-barreira.
 const adjacency: Record<string, string[]> = {};
 order.forEach((id, i) => {
   adjacency[id] = [...voronoi.neighbors(i)].map((j) => order[j]);
@@ -160,20 +162,10 @@ function sharedEdge(a: Pt[], b: Pt[]): [Pt, Pt] | null {
   }
   return common.length >= 2 ? [common[0], common[1]] : null;
 }
-const regionBorders: Pt[][] = [];
-order.forEach((id, i) => {
-  for (const j of voronoi.neighbors(i)) {
-    const nid = order[j];
-    if (j > i && regionOf[id] !== regionOf[nid] && cells[i] && cells[j]) {
-      const e = sharedEdge(cells[i]!, cells[j]!);
-      if (e) regionBorders.push(edgePolyline(e[0], e[1]).map(rp));
-    }
-  }
-});
 
-// Rios: caminham por centroides na direção "para baixo".
-function river(startId: string): Pt[] {
-  const path: Pt[] = [centroids[startId]];
+// ---- Rios ----
+function riverSpine(startId: string): string[] {
+  const path = [startId];
   const visited = new Set([startId]);
   let cur = startId;
   for (let step = 0; step < 9; step++) {
@@ -183,18 +175,152 @@ function river(startId: string): Pt[] {
     const next = cands[0];
     if (centroids[next][1] < centroids[cur][1] - 30) break;
     visited.add(next);
-    path.push(centroids[next]);
+    path.push(next);
     cur = next;
   }
   return path;
 }
-const rivers = [river('valdoria'), river('stonehelm'), river('greenbarrow')].filter(
-  (r) => r.length >= 3
+function sampleCatmull(pts: Pt[], perSeg = 12): Pt[] {
+  if (pts.length < 2) return pts;
+  const out: Pt[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i === 0 ? 0 : i - 1];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+    for (let s = 0; s < perSeg; s++) {
+      const t = s / perSeg;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const x =
+        0.5 *
+        (2 * p1[0] +
+          (-p0[0] + p2[0]) * t +
+          (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
+          (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
+      const y =
+        0.5 *
+        (2 * p1[1] +
+          (-p0[1] + p2[1]) * t +
+          (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
+          (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
+      out.push([x, y]);
+    }
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+/** Constrói uma "fita" de largura variável ao redor de uma linha central. */
+function ribbon(center: Pt[], seed: number, wide: boolean): { ribbon: Pt[]; spine: Pt[] } {
+  const n = center.length;
+  const left: Pt[] = [];
+  const right: Pt[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = center[Math.max(0, i - 1)];
+    const b = center[Math.min(n - 1, i + 1)];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const taper = Math.sin((i / (n - 1)) * Math.PI); // estreito nas pontas
+    const base = wide ? 16 : 9;
+    const varw =
+      base * (0.45 + 0.9 * taper) +
+      5 * Math.sin(i * 0.45 + seed) +
+      4 * (noise(seed * 131 + i) - 0.5) * 2;
+    const hw = Math.max(3, varw) * (wide ? 1.5 : 1);
+    left.push([center[i][0] + nx * hw, center[i][1] + ny * hw]);
+    right.push([center[i][0] - nx * hw, center[i][1] - ny * hw]);
+  }
+  const poly = [...left, ...right.reverse()];
+  poly.push(poly[0]);
+  return { ribbon: poly.map(rp), spine: center.map(rp) };
+}
+
+function segIntersect(p1: Pt, p2: Pt, p3: Pt, p4: Pt): boolean {
+  const d = (a: Pt, b: Pt, c: Pt) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const d1 = d(p3, p4, p1);
+  const d2 = d(p3, p4, p2);
+  const d3 = d(p1, p2, p3);
+  const d4 = d(p1, p2, p4);
+  return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+}
+
+function connected(adj: Record<string, string[]>): boolean {
+  const seen = new Set<string>([order[0]]);
+  const queue = [order[0]];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    for (const n of adj[cur]) if (!seen.has(n)) {
+      seen.add(n);
+      queue.push(n);
+    }
+  }
+  return seen.size === order.length;
+}
+
+const spines = [riverSpine('valdoria'), riverSpine('stonehelm'), riverSpine('greenbarrow')].filter(
+  (p) => p.length >= 3
 );
 
-const out = { width: W, height: H, order, polygons, centroids, adjacency, regionBorders, rivers };
+// Rio 0 = barreira: poda adjacências que ele cruza (se manter o mapa conexo).
+const barrierSpineIds = spines[0];
+const barrierCenter = sampleCatmull(barrierSpineIds.map((id) => centroids[id]));
+let severed = 0;
+for (let i = 0; i < order.length; i++) {
+  const ci = cells[i];
+  if (!ci) continue;
+  for (const j of voronoi.neighbors(i)) {
+    if (j <= i) continue;
+    const cj = cells[j];
+    if (!cj) continue;
+    const e = sharedEdge(ci, cj);
+    if (!e) continue;
+    // o rio-barreira cruza essa fronteira?
+    let crosses = false;
+    for (let s = 0; s < barrierCenter.length - 1; s++) {
+      if (segIntersect(barrierCenter[s], barrierCenter[s + 1], e[0], e[1])) {
+        crosses = true;
+        break;
+      }
+    }
+    if (!crosses) continue;
+    const A = order[i];
+    const B = order[j];
+    // tenta podar; reverte se desconectar.
+    const backupA = adjacency[A];
+    const backupB = adjacency[B];
+    adjacency[A] = adjacency[A].filter((x) => x !== B);
+    adjacency[B] = adjacency[B].filter((x) => x !== A);
+    if (connected(adjacency)) severed++;
+    else {
+      adjacency[A] = backupA;
+      adjacency[B] = backupB;
+    }
+  }
+}
+
+const rivers = spines.map((ids, idx) => {
+  const center = sampleCatmull(ids.map((id) => centroids[id]));
+  return ribbon(center, strHash('river' + idx), idx === 0);
+});
+
+const out = { width: W, height: H, order, polygons, centroids, adjacency, regionBorders: [] as Pt[][], rivers };
+
+// Bordas de região (depois da poda, mas independem dela).
+order.forEach((id, i) => {
+  for (const j of voronoi.neighbors(i)) {
+    const nid = order[j];
+    if (j > i && regionOf[id] !== regionOf[nid] && cells[i] && cells[j]) {
+      const e = sharedEdge(cells[i]!, cells[j]!);
+      if (e) out.regionBorders.push(edgePolyline(e[0], e[1]).map(rp));
+    }
+  }
+});
+
 writeFileSync('assets/data/mapGeometry.json', JSON.stringify(out));
 
 const counts = order.map((id) => adjacency[id]?.length || 0);
-console.log('mapGeometry.json:', order.length, 'territórios,', regionBorders.length, 'bordas,', rivers.length, 'rios');
-console.log('vizinhos min/médio/max:', Math.min(...counts), (counts.reduce((a, b) => a + b, 0) / counts.length).toFixed(1), Math.max(...counts));
+console.log('mapGeometry.json:', order.length, 'territórios,', rivers.length, 'rios,', severed, 'adjacências cortadas pelo rio');
+console.log('conexo:', connected(adjacency), '| vizinhos min/médio/max:', Math.min(...counts), (counts.reduce((a, b) => a + b, 0) / counts.length).toFixed(1), Math.max(...counts));
