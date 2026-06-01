@@ -33,6 +33,9 @@ interface Props {
   players: Player[];
   selectedId: string | null;
   attackTargetId: string | null;
+  moveTargetId?: string | null;
+  highlightIds?: string[];
+  highlightKind?: 'attack' | 'move';
   onSelect: (id: string) => void;
 }
 
@@ -148,7 +151,16 @@ const StaticLayerMemo = (() => {
   return () => el;
 })();
 
-export function MapCanvas({ territories, players, selectedId, attackTargetId, onSelect }: Props) {
+export function MapCanvas({
+  territories,
+  players,
+  selectedId,
+  attackTargetId,
+  moveTargetId,
+  highlightIds,
+  highlightKind,
+  onSelect,
+}: Props) {
   const [size, setSize] = useState({ w: 0, h: 0 });
 
   // Posição do container na tela (para converter pageX/pageY → coords locais).
@@ -315,6 +327,11 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
     [territories, players]
   );
 
+  // Cor dos destaques conforme o modo (atacar = vermelho, remanejar = verde).
+  const highlightStroke = highlightKind === 'move' ? theme.success : theme.danger;
+  const highlightFill =
+    highlightKind === 'move' ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)';
+
   return (
     <View ref={containerRef} style={styles.container} onLayout={onLayout} {...pan.panHandlers}>
       <Animated.View
@@ -340,11 +357,28 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
 
           {dynamic}
 
+          {/* Destinos válidos (modo atacar = vermelho, remanejar = verde) */}
+          {(highlightIds ?? []).map((id) =>
+            POLY_PATHS[id] ? (
+              <Path
+                key={`hl-${id}`}
+                d={POLY_PATHS[id]}
+                fill={highlightFill}
+                stroke={highlightStroke}
+                strokeWidth={5}
+                strokeDasharray="14 8"
+              />
+            ) : null
+          )}
+
           {selectedId && POLY_PATHS[selectedId] && (
             <Path d={POLY_PATHS[selectedId]} fill="none" stroke={theme.gold} strokeWidth={6} />
           )}
           {attackTargetId && POLY_PATHS[attackTargetId] && (
             <Path d={POLY_PATHS[attackTargetId]} fill="none" stroke={theme.danger} strokeWidth={6} />
+          )}
+          {moveTargetId && POLY_PATHS[moveTargetId] && (
+            <Path d={POLY_PATHS[moveTargetId]} fill="none" stroke={theme.success} strokeWidth={6} />
           )}
         </Svg>
       </Animated.View>

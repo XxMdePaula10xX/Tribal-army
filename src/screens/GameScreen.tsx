@@ -34,7 +34,7 @@ export function GameScreen() {
 
   const [focus, setFocus] = useState<CombatFocus>('default');
   const [recruitOpen, setRecruitOpen] = useState(false);
-  const [moveMode, setMoveMode] = useState(false);
+  const [mode, setMode] = useState<'idle' | 'attack' | 'move'>('idle');
   const [moveTargetId, setMoveTargetId] = useState<string | null>(null);
 
   const me = game.currentPlayerIdx;
@@ -51,48 +51,67 @@ export function GameScreen() {
     );
   };
 
+  const mine = (id: string) => game.territories[id].owner === me;
+
   const handleSelect = (id: string) => {
-    const tappedOwner = game.territories[id].owner;
-
-    // Modo remanejar: escolher um território seu vizinho como destino.
-    if (
-      moveMode &&
-      selectedId &&
-      tappedOwner === me &&
-      id !== selectedId &&
-      MAP[selectedId].adjacentTo.includes(id)
-    ) {
-      setMoveTargetId(id);
-      return;
+    // MODO ATACAR: origem = território meu selecionado; alvo = inimigo vizinho.
+    if (mode === 'attack' && selectedId && mine(selectedId)) {
+      if (!mine(id) && MAP[selectedId].adjacentTo.includes(id)) {
+        setAttackTarget(id);
+        return;
+      }
+      if (mine(id)) {
+        // troca a origem do ataque
+        select(id);
+        setAttackTarget(null);
+        return;
+      }
+      return; // toque inválido no modo atacar
     }
 
-    if (id === selectedId) {
-      select(null);
+    // MODO REMANEJAR: origem e destino são territórios meus vizinhos.
+    if (mode === 'move' && selectedId && mine(selectedId)) {
+      if (id !== selectedId && mine(id) && MAP[selectedId].adjacentTo.includes(id)) {
+        setMoveTargetId(id);
+        return;
+      }
+      if (mine(id)) {
+        select(id);
+        return;
+      }
       return;
     }
-    if (tappedOwner === me) {
-      select(id);
-      setMoveMode(false);
-      return;
-    }
-    // Território inimigo: vira alvo se adjacente ao território selecionado.
-    if (selectedId && game.territories[selectedId].owner === me && MAP[selectedId].adjacentTo.includes(id)) {
-      setAttackTarget(id);
-    } else {
-      select(id);
-    }
+
+    // MODO NORMAL: só seleciona para ver detalhes.
+    select(id === selectedId ? null : id);
   };
 
-  // Tem algum vizinho seu para onde remanejar?
-  const hasOwnNeighbor =
-    !!selectedId &&
-    game.territories[selectedId].owner === me &&
-    MAP[selectedId].adjacentTo.some((n) => game.territories[n].owner === me);
+  const resetModes = () => {
+    setMode('idle');
+    setAttackTarget(null);
+    setMoveTargetId(null);
+  };
+
+  // Sinaliza no mapa os destinos válidos conforme o modo.
+  const highlightIds: string[] =
+    selectedId && mine(selectedId) && mode === 'attack'
+      ? MAP[selectedId].adjacentTo.filter((n) => !mine(n))
+      : selectedId && mine(selectedId) && mode === 'move'
+        ? MAP[selectedId].adjacentTo.filter((n) => mine(n))
+        : [];
+
+  const enemyNeighbors =
+    selectedId && mine(selectedId)
+      ? MAP[selectedId].adjacentTo.filter((n) => !mine(n))
+      : [];
+  const ownNeighbors =
+    selectedId && mine(selectedId)
+      ? MAP[selectedId].adjacentTo.filter((n) => mine(n))
+      : [];
 
   const selected = selectedId ? game.territories[selectedId] : null;
-  const target = attackTargetId ? game.territories[attackTargetId] : null;
-  const canAttack =
-    !!selected && selected.owner === me && armySize(selected.army) >= 2 && !!target;
+  const canAttackFrom = !!selected && selected.owner === me && armySize(selected.army) >= 2;
+  const canAttack = canAttackFrom && !!attackTargetId;
 
   return (
     <View style={styles.container}>
@@ -111,6 +130,9 @@ export function GameScreen() {
           players={game.players}
           selectedId={selectedId}
           attackTargetId={attackTargetId}
+          moveTargetId={moveTargetId}
+          highlightIds={highlightIds}
+          highlightKind={mode === 'move' ? 'move' : 'attack'}
           onSelect={handleSelect}
         />
       </View>
@@ -124,38 +146,55 @@ export function GameScreen() {
             <Text style={styles.hint}>Toque num território seu para começar.</Text>
           )}
 
-          {/* Recrutamento + remanejamento */}
-          {selected?.owner === me && (
+          {/* Dica do modo ativo */}
+          {mode === 'attack' && selected?.owner === me && (
+            <Text style={styles.modeHint}>
+              {attackTargetId
+                ? `Alvo: ${MAP[attackTargetId].name}. Escolha o foco e ataque abaixo.`
+                : enemyNeighbors.length
+                  ? 'Toque num território inimigo destacado (vermelho) para atacar.'
+                  : 'Nenhum vizinho inimigo a partir daqui.'}
+            </Text>
+          )}
+          {mode === 'move' && selected?.owner === me && (
+            <Text style={styles.modeHint}>
+              {moveTargetId
+                ? `Movendo para ${MAP[moveTargetId].name}…`
+                : ownNeighbors.length
+                  ? 'Toque num território seu destacado (verde) para mover tropas.'
+                  : 'Nenhum território seu vizinho para remanejar.'}
+            </Text>
+          )}
+
+          {/* Ações do território selecionado */}
+          {selected?.owner === me && mode === 'idle' && (
             <View style={styles.ownActions}>
+              <Button label="⚒️ Recrutar" onPress={() => setRecruitOpen(true)} style={styles.flex1} />
               <Button
-                label="⚒️ Recrutar"
-                onPress={() => setRecruitOpen(true)}
+                label="⚔️ Atacar"
+                variant="danger"
+                disabled={!canAttackFrom || enemyNeighbors.length === 0}
+                onPress={() => {
+                  setMode('attack');
+                  setAttackTarget(null);
+                }}
                 style={styles.flex1}
               />
-              {hasOwnNeighbor && (
-                <Button
-                  label={
-                    player.fortifiedThisTurn
-                      ? '↔️ Remanejado'
-                      : moveMode
-                        ? '↔️ Toque o destino'
-                        : '↔️ Remanejar'
-                  }
-                  variant={moveMode ? 'primary' : 'secondary'}
-                  disabled={player.fortifiedThisTurn}
-                  onPress={() => setMoveMode((m) => !m)}
-                  style={styles.flex1}
-                />
-              )}
+              <Button
+                label={player.fortifiedThisTurn ? '↔️ Remanejado' : '↔️ Remanejar'}
+                variant="secondary"
+                disabled={player.fortifiedThisTurn || ownNeighbors.length === 0}
+                onPress={() => setMode('move')}
+                style={styles.flex1}
+              />
             </View>
           )}
 
-          {/* Ataque */}
-          {canAttack && (
+          {/* Painel de ataque (modo atacar com alvo escolhido) */}
+          {mode === 'attack' && canAttack && (
             <View style={styles.attackBox}>
-              <Text style={styles.attackTitle}>
-                Atacar {MAP[attackTargetId!].name}
-              </Text>
+              <Text style={styles.attackTitle}>Atacar {MAP[attackTargetId!].name}</Text>
+              <Text style={styles.focusLabel}>Focar baixas em:</Text>
               <View style={styles.focusRow}>
                 {FOCUS_OPTIONS.map((f) => (
                   <Button
@@ -168,11 +207,7 @@ export function GameScreen() {
                 ))}
               </View>
               <View style={styles.attackActions}>
-                <Button
-                  label="Investida"
-                  onPress={() => attack(focus, false)}
-                  style={styles.flex1}
-                />
+                <Button label="Investida" onPress={() => attack(focus, false)} style={styles.flex1} />
                 <Button
                   label="Assalto Total"
                   variant="danger"
@@ -181,6 +216,11 @@ export function GameScreen() {
                 />
               </View>
             </View>
+          )}
+
+          {/* Cancelar modo ativo */}
+          {mode !== 'idle' && (
+            <Button label="✕ Cancelar" variant="secondary" onPress={resetModes} />
           )}
         </ScrollView>
 
@@ -193,7 +233,15 @@ export function GameScreen() {
         </View>
       </View>
 
-      <CombatModal results={lastCombat} onDismiss={dismissCombat} />
+      <CombatModal
+        results={lastCombat}
+        onDismiss={() => {
+          dismissCombat();
+          // Se a batalha terminou (não está mais em curso), sai do modo atacar.
+          const lr = lastCombat && lastCombat.length ? lastCombat[lastCombat.length - 1] : null;
+          if (lr && !lr.ongoing) resetModes();
+        }}
+      />
 
       {selectedId && selected?.owner === me && (
         <RecruitPanel
@@ -210,7 +258,7 @@ export function GameScreen() {
           visible={!!moveTargetId}
           onClose={() => {
             setMoveTargetId(null);
-            setMoveMode(false);
+            setMode('idle');
           }}
         />
       )}
@@ -273,6 +321,16 @@ const styles = StyleSheet.create({
   terrLine: { color: theme.text, marginTop: 4 },
   combo: { color: theme.success, marginTop: 4, fontStyle: 'italic' },
   ownActions: { flexDirection: 'row', gap: 8 },
+  modeHint: {
+    color: theme.gold,
+    fontSize: 14,
+    fontWeight: '600',
+    backgroundColor: theme.bgPanelAlt,
+    borderRadius: 8,
+    padding: 10,
+    overflow: 'hidden',
+  },
+  focusLabel: { color: theme.textDim, fontSize: 13 },
   attackBox: {
     backgroundColor: theme.bgPanelAlt,
     borderRadius: 10,
