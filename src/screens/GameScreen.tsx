@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { CombatModal } from '@/components/CombatModal';
@@ -39,6 +39,17 @@ export function GameScreen() {
 
   const me = game.currentPlayerIdx;
   const player = game.players[me];
+
+  const confirmExit = () => {
+    Alert.alert(
+      'Sair da partida?',
+      'O progresso fica salvo e você pode continuar depois pelo menu.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sair', style: 'destructive', onPress: goToMenu },
+      ]
+    );
+  };
 
   const handleSelect = (id: string) => {
     const tappedOwner = game.territories[id].owner;
@@ -204,7 +215,7 @@ export function GameScreen() {
         />
       )}
 
-      <Button label="Menu" variant="secondary" onPress={goToMenu} style={styles.menuBtn} />
+      <Button label="Menu" variant="secondary" onPress={confirmExit} style={styles.menuBtn} />
     </View>
   );
 }

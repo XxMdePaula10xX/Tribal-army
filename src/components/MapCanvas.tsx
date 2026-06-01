@@ -151,6 +151,15 @@ const StaticLayerMemo = (() => {
 export function MapCanvas({ territories, players, selectedId, attackTargetId, onSelect }: Props) {
   const [size, setSize] = useState({ w: 0, h: 0 });
 
+  // Posição do container na tela (para converter pageX/pageY → coords locais).
+  const containerRef = useRef<View>(null);
+  const origin = useRef({ x: 0, y: 0 });
+  const measure = () => {
+    containerRef.current?.measureInWindow((x, y) => {
+      origin.current = { x, y };
+    });
+  };
+
   const scale = useRef(new Animated.Value(1)).current;
   const tx = useRef(new Animated.Value(0)).current;
   const ty = useRef(new Animated.Value(0)).current;
@@ -185,6 +194,7 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     setSize({ w: width, h: height });
+    measure();
     if (!inited.current && width > 0 && height > 0) {
       const fit = Math.min(width / MAP_W, height / MAP_H) * 0.98;
       minS.current = fit * 0.8;
@@ -193,6 +203,10 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
       inited.current = true;
     }
   };
+
+  // Coordenadas locais do toque (relativas ao container), a partir do pageX/Y.
+  const localX = (t: { pageX: number }) => t.pageX - origin.current.x;
+  const localY = (t: { pageY: number }) => t.pageY - origin.current.y;
 
   const hit = (x: number, y: number) => {
     const mx = (x - TX.current) / s.current;
@@ -221,14 +235,19 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
       onPanResponderGrant: () => {
         g.moved = false;
         g.pointers = 0;
+        measure();
       },
       onPanResponderMove: (e) => {
         const touches = e.nativeEvent.touches;
         if (touches.length >= 2) {
           const [a, b] = touches;
-          const dist = Math.hypot(a.locationX - b.locationX, a.locationY - b.locationY);
-          const cx = (a.locationX + b.locationX) / 2;
-          const cy = (a.locationY + b.locationY) / 2;
+          const ax = localX(a);
+          const ay = localY(a);
+          const bx = localX(b);
+          const by = localY(b);
+          const dist = Math.hypot(ax - bx, ay - by);
+          const cx = (ax + bx) / 2;
+          const cy = (ay + by) / 2;
           if (g.pointers !== 2) {
             g.pointers = 2;
             g.baseDist = dist || 1;
@@ -243,21 +262,26 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
           g.moved = true;
         } else if (touches.length === 1) {
           const t = touches[0];
+          const lx = localX(t);
+          const ly = localY(t);
           if (g.pointers !== 1) {
             g.pointers = 1;
             g.baseTX = TX.current;
             g.baseTY = TY.current;
-            g.startX = t.locationX;
-            g.startY = t.locationY;
+            g.startX = lx;
+            g.startY = ly;
           }
-          const dx = t.locationX - g.startX;
-          const dy = t.locationY - g.startY;
+          const dx = lx - g.startX;
+          const dy = ly - g.startY;
           if (Math.abs(dx) > 5 || Math.abs(dy) > 5) g.moved = true;
           apply(s.current, g.baseTX + dx, g.baseTY + dy);
         }
       },
       onPanResponderRelease: (e) => {
-        if (!g.moved) hit(e.nativeEvent.locationX, e.nativeEvent.locationY);
+        if (!g.moved) {
+          const t = e.nativeEvent.changedTouches?.[0] ?? e.nativeEvent;
+          hit(localX(t), localY(t));
+        }
         g.pointers = 0;
       },
     })
@@ -292,7 +316,7 @@ export function MapCanvas({ territories, players, selectedId, attackTargetId, on
   );
 
   return (
-    <View style={styles.container} onLayout={onLayout} {...pan.panHandlers}>
+    <View ref={containerRef} style={styles.container} onLayout={onLayout} {...pan.panHandlers}>
       <Animated.View
         style={{
           width: MAP_W,

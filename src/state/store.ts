@@ -90,7 +90,11 @@ export const useGame = create<Store>((set, get) => ({
   lastCombat: null,
   config: DEFAULT_CONFIG,
 
-  goToMenu: () => set({ screen: 'menu', game: null, selectedId: null, attackTargetId: null }),
+  goToMenu: () => {
+    const { game } = get();
+    if (game && game.phase === 'playing') void saveGame(game);
+    set({ screen: 'menu', game: null, selectedId: null, attackTargetId: null });
+  },
   goToSetup: () => set({ screen: 'setup' }),
   goToHistory: () => set({ screen: 'history' }),
   goToSettings: () => set({ screen: 'settings' }),
